@@ -12,7 +12,7 @@ import {
   fetchUbicaciones,
   fetchEstados,
   fetchArticulos,
-  updateArticulo,
+  updateArticulos,
 } from '../../services/api';
 
 Modal.setAppElement('#__next');

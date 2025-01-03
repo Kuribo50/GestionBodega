@@ -315,7 +315,7 @@ export const actualizarStockMinimo = async (id, stockMinimo) => {
   }
 };
 
-export const updateArticulo = async (id, data) => {
+export const updateArticulos = async (id, data) => {
   try {
     const response = await api.patch(`/articulos/${id}/`, data);
     Swal.fire({

@@ -11,7 +11,7 @@ import {
   updateUbicacion, 
   deleteUbicacion, 
   fetchArticulos, 
-  updateArticulo 
+  updateArticulos 
 } from '@/services/api'; 
 
 const MySwal = withReactContent(Swal);
