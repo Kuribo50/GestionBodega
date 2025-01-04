@@ -25,9 +25,8 @@ import {
 
 import Sidebar from '../../components/Sidebar';
 import AsyncSelect from 'react-select/async';
-import { toast, ToastContainer } from 'react-toastify';
-import Modal from 'react-modal';
 import Swal from 'sweetalert2';
+import Modal from 'react-modal';
 import PropTypes from 'prop-types';
 import { useDropzone } from 'react-dropzone';
 
@@ -91,7 +90,14 @@ const ImportarArticulosModal = ({ isOpen, onClose, onImportSuccess }) => {
     onDrop: (acceptedFiles) => {
       if (acceptedFiles.length > 0) {
         setSelectedFile(acceptedFiles[0]);
-        toast.success('Archivo cargado correctamente.');
+        // Mostrar notificación de archivo cargado
+        Swal.fire({
+          icon: 'info',
+          title: 'Archivo seleccionado',
+          text: `Archivo cargado: ${acceptedFiles[0].name}`,
+          timer: 2000,
+          showConfirmButton: false,
+        });
       }
     },
   });
@@ -100,17 +106,33 @@ const ImportarArticulosModal = ({ isOpen, onClose, onImportSuccess }) => {
   const handleDownloadTemplateBackend = async () => {
     try {
       await downloadPlantillaArticulos(); // Ver services/api.js
-      toast.success('Plantilla descargada correctamente.');
+      // Mostrar notificación de éxito
+      Swal.fire({
+        icon: 'success',
+        title: 'Plantilla descargada',
+        text: 'La plantilla ha sido descargada correctamente.',
+        timer: 2000,
+        showConfirmButton: false,
+      });
     } catch (error) {
-      console.error('Error al descargar plantilla:', error);
-      toast.error('Error al descargar la plantilla.');
+      console.error('Error al descargar plantilla:', error.response?.data || error.message);
+      // Mostrar notificación de error
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'No se pudo descargar la plantilla.',
+      });
     }
   };
 
   // Procesar importación
   const handleImport = async () => {
     if (!selectedFile) {
-      toast.error('Por favor, selecciona un archivo para importar.');
+      Swal.fire({
+        icon: 'error',
+        title: 'Archivo no seleccionado',
+        text: 'Por favor, selecciona un archivo para importar.',
+      });
       return;
     }
 
@@ -124,50 +146,65 @@ const ImportarArticulosModal = ({ isOpen, onClose, onImportSuccess }) => {
       // Mostrar modal de carga
       Swal.fire({
         title: 'Importando...',
-        text: 'Procesando el archivo.',
+        text: 'Por favor, espera mientras se procesa el archivo.',
         allowOutsideClick: false,
-        didOpen: () => Swal.showLoading(),
+        didOpen: () => {
+          Swal.showLoading();
+        },
       });
 
       // Llamar a tu API importArticulos
       const response = await importArticulos(formData);
 
+      // Cerrar modal de carga
       Swal.close();
 
-      if (response.status === 200) {
+      // Verificar si la respuesta indica éxito o error
+      if (response && response.status === 'success') {
         Swal.fire({
           icon: 'success',
-          title: 'Éxito',
-          html: `Importación completada correctamente.<br/>Registros creados: ${response.data.creados}.<br/>Registros actualizados: ${response.data.actualizados}.`,
+          title: 'Importación exitosa',
+          html: `Importación completada correctamente.<br/>Registros creados: ${response.creados}.<br/>Registros actualizados: ${response.actualizados}.`,
+          confirmButtonColor: '#3085d6', // Azul por defecto
         });
         onImportSuccess(); // Refrescar datos en el componente padre
         onClose();
-      } else {
-        toast.error('Error durante la importación.');
-      }
-    } catch (error) {
-      console.error('Error en la importación:', error);
-      Swal.close();
-      if (error.response && error.response.data) {
-        const { errores, respaldo, mensaje } = error.response.data;
-        let errorMsg = 'Formato invalido para realizar la importación.';
-        if (mensaje) {
-          errorMsg = mensaje;
+      } else if (response && response.status === 'error') {
+        // Manejar errores específicos
+        const { error_code, message, missing_columns } = response;
+        let errorMsg = '';
+
+        if (error_code === 147) {
+          errorMsg = `<strong>Faltan columnas obligatorias en el archivo:</strong> ${missing_columns.join(', ')}.`;
+        } else {
+          errorMsg = message || 'Ocurrió un error durante la importación.';
         }
-        if (errores && errores.length > 0) {
-          errorMsg += `<br/><ul>${errores.map((err) => `<li>${err}</li>`).join('')}</ul>`;
-        }
-        if (respaldo) {
-          errorMsg += `<br/><strong>Respaldo disponible en:</strong> ${respaldo}`;
-        }
+
         Swal.fire({
           icon: 'error',
           title: 'Error en la importación',
           html: errorMsg,
+          confirmButtonColor: '#d33', // Rojo para errores
         });
       } else {
-        toast.error('Error al procesar la importación.');
+        // Caso genérico de error
+        Swal.fire({
+          icon: 'error',
+          title: 'Error en la importación',
+          text: 'Ocurrió un error durante la importación.',
+          confirmButtonColor: '#d33', // Rojo para errores
+        });
       }
+    } catch (error) {
+      console.error('Error en la importación:', error.response?.data || error.message);
+      Swal.close();
+      // Manejar errores de red u otros errores no controlados
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Error al procesar la importación.',
+        confirmButtonColor: '#d33', // Rojo para errores
+      });
     } finally {
       setIsProcessing(false);
       setProgress(0);
@@ -179,23 +216,25 @@ const ImportarArticulosModal = ({ isOpen, onClose, onImportSuccess }) => {
     <Modal
       isOpen={isOpen}
       onRequestClose={onClose}
-      className="fixed inset-0 flex items-center justify-center p-4 bg-gray-800 bg-opacity-75"
-      overlayClassName="fixed inset-0 bg-gray-800 bg-opacity-50"
+      // Clases de Tailwind para asegurar que el Modal y el overlay
+      // queden por delante del Sidebar y sean responsivos
+      className="z-[60] bg-white rounded-lg shadow-lg p-8 w-full max-w-3xl relative max-h-full md:max-h-[90vh] overflow-y-auto" // Modal content
+      overlayClassName="z-[50] fixed inset-0 bg-gray-800 bg-opacity-50 flex items-center justify-center" // Overlay
     >
-      <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-3xl">
+      <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-3xl">
         <h2 className="text-2xl font-bold text-gray-800 mb-4">Importar Artículos</h2>
 
         {/* Instrucciones de Importación */}
-          <div className="mb-6">
-        <h3 className="text-xl font-semibold text-gray-700 mb-2">Instrucciones para Importar Artículos:</h3>
-        <ul className="list-disc list-inside text-gray-600 space-y-1">
-          <li>1. Descarga la plantilla de importación haciendo clic en &quot;Descargar Plantilla&quot;.</li>
-          <li>2. Rellena los datos en la plantilla asegurándote de seguir el formato correcto.</li>
-          <li>3. Guarda el archivo completado en tu computadora.</li>
-          <li>4. Arrastra y suelta el archivo en la zona de importación o haz clic para seleccionarlo.</li>
-          <li>5. Haz clic en &quot;Procesar Importación&quot; para subir los datos.</li>
-        </ul>
-       </div>
+        <div className="mb-6">
+          <h3 className="text-xl font-semibold text-gray-700 mb-2">Instrucciones para Importar Artículos:</h3>
+          <ul className="list-disc list-inside text-gray-600 space-y-1">
+            <li>1. Descarga la plantilla de importación haciendo clic en &quot;Descargar Plantilla&quot;.</li>
+            <li>2. Rellena los datos en la plantilla asegurándote de seguir el formato correcto.</li>
+            <li>3. Guarda el archivo completado en tu computadora.</li>
+            <li>4. Arrastra y suelta el archivo en la zona de importación o haz clic para seleccionarlo.</li>
+            <li>5. Haz clic en &quot;Procesar Importación&quot; para subir los datos.</li>
+          </ul>
+        </div>
 
         {/* Dropzone */}
         <div
@@ -241,14 +280,22 @@ const ImportarArticulosModal = ({ isOpen, onClose, onImportSuccess }) => {
         <div className="mt-8 flex justify-center space-x-4">
           <button
             onClick={onClose}
-            className="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600"
+            className={`flex items-center justify-center px-4 py-2 rounded-md transition-colors ${
+              isProcessing
+                ? 'bg-red-300 cursor-not-allowed'
+                : 'bg-red-500 hover:bg-red-600 text-white'
+            }`}
             disabled={isProcessing}
           >
             Cancelar
           </button>
           <button
             onClick={handleImport}
-            className="flex items-center bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600"
+            className={`flex items-center px-4 py-2 rounded-md transition-colors ${
+              isProcessing || !selectedFile
+                ? 'bg-green-300 cursor-not-allowed'
+                : 'bg-green-500 hover:bg-green-600 text-white'
+            }`}
             disabled={isProcessing || !selectedFile}
           >
             <FaUpload className="inline mr-2" />
@@ -258,7 +305,8 @@ const ImportarArticulosModal = ({ isOpen, onClose, onImportSuccess }) => {
       </div>
     </Modal>
   );
-}; // <-- Llave de cierre añadida
+
+};
 
 ImportarArticulosModal.propTypes = {
   isOpen: PropTypes.bool.isRequired,
@@ -296,8 +344,8 @@ const HistorialStock = () => {
   const [fechaInicioFiltro, setFechaInicioFiltro] = useState('');
   const [fechaFinFiltro, setFechaFinFiltro] = useState('');
 
-  // Límite de exportación (50, 100 o all)
-  const [exportLimit, setExportLimit] = useState(50);
+  // Definir exportLimit
+  const exportLimit = 'all'; // Cambia a un número si deseas un límite específico, por ejemplo, 100
 
   // Control del Modal de Importación
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -310,10 +358,23 @@ const HistorialStock = () => {
     try {
       const data = await fetchArticulos(); // Ajustar si tienes un endpoint específico para historial
       setStock(Array.isArray(data) ? data : []);
+      // Mostrar notificación de éxito al refrescar (opcional)
+      Swal.fire({
+        icon: 'success',
+        title: 'Datos actualizados',
+        text: 'La tabla se ha actualizado correctamente.',
+        timer: 2000,
+        showConfirmButton: false,
+      });
     } catch (err) {
       setError('Error al cargar los datos.');
       console.error(err);
-      toast.error('Error al cargar los datos.');
+      // Mostrar notificación de error
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Error al cargar los datos.',
+      });
     }
   };
 
@@ -353,7 +414,12 @@ const HistorialStock = () => {
       } catch (err) {
         setError('Error al cargar los datos.');
         console.error(err);
-        toast.error('Error al cargar los datos.');
+        // Mostrar notificación de error
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'Error al cargar los datos.',
+        });
       } finally {
         setLoading(false);
       }
@@ -376,7 +442,12 @@ const HistorialStock = () => {
         }));
     } catch (error) {
       console.error('Error cargando categorías:', error);
-      toast.error('Error al cargar categorías.');
+      // Mostrar notificación de error
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Error al cargar categorías.',
+      });
       return [];
     }
   };
@@ -394,7 +465,12 @@ const HistorialStock = () => {
         }));
     } catch (error) {
       console.error('Error cargando modelos:', error);
-      toast.error('Error al cargar modelos.');
+      // Mostrar notificación de error
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Error al cargar modelos.',
+      });
       return [];
     }
   };
@@ -412,7 +488,12 @@ const HistorialStock = () => {
         }));
     } catch (error) {
       console.error('Error cargando marcas:', error);
-      toast.error('Error al cargar marcas.');
+      // Mostrar notificación de error
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Error al cargar marcas.',
+      });
       return [];
     }
   };
@@ -430,7 +511,12 @@ const HistorialStock = () => {
         }));
     } catch (error) {
       console.error('Error cargando ubicaciones:', error);
-      toast.error('Error al cargar ubicaciones.');
+      // Mostrar notificación de error
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Error al cargar ubicaciones.',
+      });
       return [];
     }
   };
@@ -448,7 +534,12 @@ const HistorialStock = () => {
         }));
     } catch (error) {
       console.error('Error cargando estados:', error);
-      toast.error('Error al cargar estados.');
+      // Mostrar notificación de error
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Error al cargar estados.',
+      });
       return [];
     }
   };
@@ -734,10 +825,22 @@ const HistorialStock = () => {
       const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
       saveAs(blob, `HistorialStock_${Date.now()}.csv`);
 
-      toast.success('Exportación CSV completada.');
+      // Mostrar notificación de éxito
+      Swal.fire({
+        icon: 'success',
+        title: 'Exportación CSV completada',
+        timer: 2000,
+        showConfirmButton: false,
+      });
     } catch (error) {
       console.error('Error exportando a CSV (Front):', error);
-      toast.error('Error al exportar a CSV.');
+      // Mostrar notificación de error
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Error al exportar a CSV.',
+        confirmButtonColor: '#d33', // Rojo para errores
+      });
     }
   };
 
@@ -855,10 +958,22 @@ const HistorialStock = () => {
       const blob = new Blob([excelBuffer], { type: 'application/octet-stream' });
       saveAs(blob, `HistorialStock_${Date.now()}.xlsx`);
 
-      toast.success('Exportación a Excel completada.');
+      // Mostrar notificación de éxito
+      Swal.fire({
+        icon: 'success',
+        title: 'Exportación a Excel completada',
+        timer: 2000,
+        showConfirmButton: false,
+      });
     } catch (error) {
       console.error('Error exportando a Excel (Front):', error);
-      toast.error('Error al exportar a Excel.');
+      // Mostrar notificación de error
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Error al exportar a Excel.',
+        confirmButtonColor: '#d33', // Rojo para errores
+      });
     }
   };
 
@@ -927,10 +1042,23 @@ const HistorialStock = () => {
       const pdfBlobUrl = doc.output('bloburl');
       window.open(pdfBlobUrl, '_blank');
 
-      toast.success('PDF abierto en nueva pestaña.');
+      // Mostrar notificación de éxito
+      Swal.fire({
+        icon: 'success',
+        title: 'PDF generado',
+        text: 'El PDF se ha abierto en una nueva pestaña.',
+        timer: 2000,
+        showConfirmButton: false,
+      });
     } catch (error) {
       console.error('Error al exportar PDF (Front):', error);
-      toast.error('Error al exportar PDF.');
+      // Mostrar notificación de error
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Error al exportar PDF.',
+        confirmButtonColor: '#d33', // Rojo para errores
+      });
     }
   };
 
@@ -1006,9 +1134,6 @@ const HistorialStock = () => {
       <Sidebar />
 
       <div className="flex-1 p-4 md:ml-64 bg-white">
-        {/* Toast Container para notificaciones */}
-        <ToastContainer />
-
         {/* Barra superior: filtro global y botones de exportación */}
         <div className="flex flex-col sm:flex-row justify-between items-center mb-4 space-y-2 sm:space-y-0">
           <div className="flex items-center w-full sm:w-1/2">
@@ -1268,40 +1393,6 @@ const HistorialStock = () => {
               </div>
             </div>
 
-            {/* Fila 4: Fechas */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label
-                  htmlFor="fechaInicioFiltro"
-                  className="block text-sm font-medium text-gray-700"
-                >
-                  Fecha Inicio
-                </label>
-                <input
-                  id="fechaInicioFiltro"
-                  type="date"
-                  value={fechaInicioFiltro}
-                  onChange={(e) => setFechaInicioFiltro(e.target.value)}
-                  className="mt-1 block w-full border border-gray-300 rounded-md p-2 text-black text-sm bg-gray-100"
-                />
-              </div>
-              <div>
-                <label
-                  htmlFor="fechaFinFiltro"
-                  className="block text-sm font-medium text-gray-700"
-                >
-                  Fecha Fin
-                </label>
-                <input
-                  id="fechaFinFiltro"
-                  type="date"
-                  value={fechaFinFiltro}
-                  onChange={(e) => setFechaFinFiltro(e.target.value)}
-                  className="mt-1 block w-full border border-gray-300 rounded-md p-2 text-black text-sm bg-gray-100"
-                />
-              </div>
-            </div>
-
             {/* Botón para Borrar Filtros */}
             <div className="flex justify-end">
               <button
@@ -1454,6 +1545,7 @@ const HistorialStock = () => {
       </div>
     </div>
   );
+
 };
 
 HistorialStock.propTypes = {

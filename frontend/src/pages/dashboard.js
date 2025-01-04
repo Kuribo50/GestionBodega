@@ -1,6 +1,6 @@
 // src/pages/dashboard.js
 
-import { useEffect, useState , useCallback} from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/router";
 import Swal from "sweetalert2"; // Importar SweetAlert2
 import Sidebar from "@/components/Sidebar";
@@ -16,7 +16,6 @@ export default function Dashboard() {
   const [articulos, setArticulos] = useState([]);
   const [movimientos, setMovimientos] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [alerta, setAlerta] = useState(false); // Cambiado a booleano
   const [usuario, setUsuario] = useState(null);
 
   const router = useRouter();
@@ -28,46 +27,61 @@ export default function Dashboard() {
         fetchArticulos(),
         fetchMovimientos(),
       ]);
-  
+
       setArticulos(articulosData);
       setMovimientos(movimientosData);
-  
+
       // Verificar stock bajo
       const productosBajoStock = articulosData.filter(
         (art) => art.stock_actual < art.stock_minimo
       ).length;
-  
-      if (productosBajoStock > 0 && !alerta) {
+
+      // Verificar si la alerta ya fue mostrada en esta sesión
+      const stockAlertShown = sessionStorage.getItem("stockAlertShown");
+
+      if (productosBajoStock > 0 && !stockAlertShown) {
         const mensaje = `Tienes ${productosBajoStock} producto(s) con stock por debajo del mínimo`;
-        setAlerta(true); // Solo mostrar una vez
+
+        // Alerta de "Advertencia" (Stock bajo) con botón color verde
         Swal.fire({
           icon: "warning",
           title: "Stock bajo",
           text: mensaje,
           confirmButtonText: "Entendido",
+          confirmButtonColor: "#28a745", // Botón verde
+        }).then(() => {
+          // Marcar que la alerta ya fue mostrada en esta sesión
+          sessionStorage.setItem("stockAlertShown", "true");
         });
       }
     } catch (error) {
       console.error("Error al cargar datos:", error);
+
+      // Alerta de "Error" con botón color rojo
       Swal.fire({
         icon: "error",
         title: "Error",
         text: "Error al cargar los datos del dashboard.",
+        confirmButtonColor: "#dc3545", // Botón rojo
       });
     } finally {
       setLoading(false);
     }
-  }, [alerta]);
+  }, []);
 
   // Cerrar sesión
   const handleLogout = () => {
     localStorage.removeItem("access_token");
     localStorage.removeItem("refresh_token");
     localStorage.removeItem("user");
+    sessionStorage.removeItem("stockAlertShown"); // Limpiar la bandera de la alerta
+
+    // Alerta de "Éxito" (cierre de sesión) con botón color verde
     Swal.fire({
       icon: "success",
       title: "Sesión cerrada",
       text: "Has cerrado sesión correctamente.",
+      confirmButtonColor: "#28a745", // Botón verde
     }).then(() => {
       router.replace("/login");
     });
@@ -86,7 +100,45 @@ export default function Dashboard() {
     }
     loadData();
   }, [router, loadData]);
-  
+
+  // Manejo de carga y errores antes de renderizar la UI
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-screen bg-gray-100">
+        <div className="flex flex-col items-center">
+          <svg
+            className="animate-spin h-10 w-10 text-blue-500 mb-4"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <circle
+              className="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              strokeWidth="4"
+            ></circle>
+            <path
+              className="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8v8H4z"
+            ></path>
+          </svg>
+          <div className="text-xl text-blue-500">Cargando...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!usuario) {
+    return (
+      <div className="flex justify-center items-center h-screen bg-gray-100">
+        <div className="text-xl text-red-500">No se encontró el usuario.</div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen bg-gray-100">
@@ -97,19 +149,17 @@ export default function Dashboard() {
       <main className="flex-1 p-6 sm:ml-64">
         {/* Encabezado */}
         <div className="flex items-center justify-between mb-6">
-          {usuario && (
-            <div className="flex items-center space-x-2">
-              <FiUser className="text-2xl text-blue-600" />
-              <div>
-                <h1 className="text-2xl font-bold text-gray-800">
-                  ¡Hola, {usuario.username}!
-                </h1>
-                <p className="text-sm text-gray-600">
-                  Bienvenido a tu panel de control.
-                </p>
-              </div>
+          <div className="flex items-center space-x-2">
+            <FiUser className="text-2xl text-blue-600" />
+            <div>
+              <h1 className="text-2xl font-bold text-gray-800">
+                ¡Hola, {usuario.username}!
+              </h1>
+              <p className="text-sm text-gray-600">
+                Bienvenido a tu panel de control.
+              </p>
             </div>
-          )}
+          </div>
 
           <button
             onClick={handleLogout}

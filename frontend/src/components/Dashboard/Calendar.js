@@ -1,24 +1,39 @@
 // src/components/Dashboard/Calendar.js
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import moment from 'moment';
 import DatePicker from 'react-datepicker';
-import { FiPlus, FiArrowLeft, FiArrowRight } from 'react-icons/fi';
+import { FiPlus, FiArrowLeft, FiArrowRight, FiEdit } from 'react-icons/fi';
 import 'react-datepicker/dist/react-datepicker.css';
 import MySwal from '@/utils/swalConfig';
 import Holidays from 'date-holidays';
 import { useUser } from '@/context/UserContext';
-import { fetchTasks, createTask, updateTask, deleteTask as deleteTaskAPI } from '@/services/api';
+import { 
+  fetchTasks, 
+  createTask, 
+  updateTask, 
+  deleteTask as deleteTaskAPI 
+} from '@/services/api';
+import 'moment/locale/es'; // Importar el idioma español
 
-// Función para verificar si un día está entre el rango de fechas de una tarea
+moment.locale('es'); // Configurar Moment.js en español
+
+// ------------------------------------------------------------------
+// Funciones Auxiliares
+// ------------------------------------------------------------------
 function dayIsBetween(dayStr, startStr, endStr) {
   const dayMoment = moment(dayStr, 'YYYY-MM-DD');
   const startMoment = moment(startStr, 'YYYY-MM-DD');
   const endMoment = moment(endStr, 'YYYY-MM-DD');
-  return dayMoment.isSameOrAfter(startMoment, 'day') && dayMoment.isSameOrBefore(endMoment, 'day');
+  return (
+    dayMoment.isSameOrAfter(startMoment, 'day') &&
+    dayMoment.isSameOrBefore(endMoment, 'day')
+  );
 }
 
-// Modal para agregar o editar tareas
+// ------------------------------------------------------------------
+// Modal de CREAR TAREA
+// ------------------------------------------------------------------
 function TaskModal({ isOpen, onClose, onSave, defaultDay }) {
   const [title, setTitle] = useState('');
   const [task_type, setTaskType] = useState('');
@@ -69,12 +84,16 @@ function TaskModal({ isOpen, onClose, onSave, defaultDay }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 px-4">
       <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md sm:max-w-lg">
         <h2 className="text-xl font-semibold mb-4 text-gray-700">
-          {defaultDay ? `Crear Tarea para el Día ${moment(defaultDay).format('DD/MM/YYYY')}` : 'Crear Tarea'}
+          {defaultDay
+            ? `Crear Tarea para el Día ${moment(defaultDay).format('DD/MM/YYYY')}`
+            : 'Crear Tarea'}
         </h2>
 
-        {/* Formulario de Tarea */}
+        {/* Título */}
         <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Título</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Título
+          </label>
           <input
             type="text"
             className="w-full border border-gray-300 p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -84,8 +103,11 @@ function TaskModal({ isOpen, onClose, onSave, defaultDay }) {
           />
         </div>
 
+        {/* Tipo de Tarea */}
         <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de Tarea</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Tipo de Tarea
+          </label>
           <input
             type="text"
             className="w-full border border-gray-300 p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -95,6 +117,7 @@ function TaskModal({ isOpen, onClose, onSave, defaultDay }) {
           />
         </div>
 
+        {/* Fechas */}
         <div className="mb-4">
           <p className="text-sm text-gray-600 mb-2">
             Selecciona fecha de inicio y fin (la de inicio ya está seleccionada)
@@ -124,7 +147,7 @@ function TaskModal({ isOpen, onClose, onSave, defaultDay }) {
           </div>
         </div>
 
-        {/* Botones del Modal */}
+        {/* Botones */}
         <div className="flex justify-end space-x-2">
           <button
             onClick={onClose}
@@ -144,49 +167,75 @@ function TaskModal({ isOpen, onClose, onSave, defaultDay }) {
   );
 }
 
-// Modal para ver y gestionar tareas de un día específico
-function ViewTasksModal({ isOpen, onClose, tasks, clickedDay, clickedHoliday, onUpdate, onDelete }) {
-  // Asegura que useMemo siempre se ejecuta
+// ------------------------------------------------------------------
+// Modal de VER/MANEJAR TAREAS (Segundo modal) con scrollbar
+// ------------------------------------------------------------------
+function ViewTasksModal({
+  isOpen,
+  onClose,
+  tasks,
+  clickedDay,
+  clickedHoliday,
+  onUpdate,
+  onDelete,
+}) {
+  // Filtrar tareas para este día
   const filteredTasks = useMemo(() => {
-    const dayStr = clickedDay || ""; // Garantiza un valor seguro
-    return tasks.filter((t) => clickedDay && dayIsBetween(dayStr, t.start, t.end));
+    if (!clickedDay) return [];
+    return tasks.filter((t) => dayIsBetween(clickedDay, t.start, t.end));
   }, [tasks, clickedDay]);
 
-  // Renderiza un contenedor vacío si el modal no está abierto
-  if (!isOpen) {
-    return <div className="hidden" />;
-  }
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 px-4">
-      <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-2xl sm:max-w-xl lg:max-w-2xl overflow-auto">
+      <div
+        className="bg-white p-6 rounded-lg shadow-lg w-full max-w-2xl sm:max-w-xl lg:max-w-2xl 
+                  overflow-y-auto max-h-[90vh]"
+      >
         <h2 className="text-xl font-semibold mb-4 text-gray-700">
           Tareas Pendientes - {moment(clickedDay).format('DD/MM/YYYY')}
         </h2>
 
-        {/* Mostrar información del feriado si existe */}
+        {/* Feriado */}
         {clickedHoliday && (
           <div className="mb-4 p-4 bg-red-100 border border-red-400 rounded-md">
-            <h3 className="text-lg font-semibold text-red-700">Feriado: {clickedHoliday.name}</h3>
+            <h3 className="text-lg font-semibold text-red-700">
+              Feriado: {clickedHoliday.name}
+            </h3>
             <p className="text-sm text-red-600">
               {clickedHoliday.description || 'Este es un día feriado oficial.'}
             </p>
           </div>
         )}
 
+        {/* Lista de Tareas */}
         {filteredTasks.length === 0 && !clickedHoliday ? (
-          <p className="text-sm text-gray-500">No hay tareas pendientes para este día.</p>
+          <p className="text-sm text-gray-500">
+            No hay tareas pendientes para este día.
+          </p>
         ) : (
           <ul className="space-y-4">
             {filteredTasks.map((task) => (
-              <li key={task.id} className="flex flex-col sm:flex-row sm:items-center justify-between border-b pb-2">
+              <li
+                key={task.id}
+                className="flex flex-col sm:flex-row sm:items-center justify-between border-b pb-2"
+              >
                 <div className="mb-2 sm:mb-0">
-                  <h3 className={`text-lg ${task.completed ? 'line-through text-green-500' : 'text-gray-800'}`}>
+                  <h3
+                    className={`text-lg ${
+                      task.completed ? 'line-through text-green-500' : 'text-gray-800'
+                    }`}
+                  >
                     {task.title}
                   </h3>
-                  <p className="text-sm text-gray-600">Tipo de Tarea: {task.task_type}</p>
                   <p className="text-sm text-gray-600">
-                    Fecha: {moment(task.start).format('DD/MM/YYYY')} {task.start !== task.end && ` - ${moment(task.end).format('DD/MM/YYYY')}`}
+                    Tipo de Tarea: {task.task_type}
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    Fecha: {moment(task.start).format('DD/MM/YYYY')}{' '}
+                    {task.start !== task.end &&
+                      ` - ${moment(task.end).format('DD/MM/YYYY')}`}
                   </p>
                 </div>
                 <div className="flex items-center space-x-2">
@@ -198,7 +247,7 @@ function ViewTasksModal({ isOpen, onClose, tasks, clickedDay, clickedHoliday, on
                         : 'bg-green-500 hover:bg-green-600 text-white'
                     }`}
                   >
-                    {task.completed ? 'Marcar como Incompleta' : 'Completar'}
+                    {task.completed ? 'Marcar Incompleta' : 'Completar'}
                   </button>
                   <button
                     onClick={() => onDelete(task.id)}
@@ -212,7 +261,7 @@ function ViewTasksModal({ isOpen, onClose, tasks, clickedDay, clickedHoliday, on
           </ul>
         )}
 
-        {/* Botón para cerrar el modal */}
+        {/* Botón Cerrar */}
         <div className="flex justify-end mt-6">
           <button
             onClick={onClose}
@@ -226,6 +275,9 @@ function ViewTasksModal({ isOpen, onClose, tasks, clickedDay, clickedHoliday, on
   );
 }
 
+// ------------------------------------------------------------------
+// COMPONENTE PRINCIPAL
+// ------------------------------------------------------------------
 export default function CalendarComponent() {
   const { user, loading } = useUser();
   const [modalOpen, setModalOpen] = useState(false);
@@ -240,20 +292,21 @@ export default function CalendarComponent() {
     moment.locale('es');
   }, []);
 
-  const year = currentMonth.year(); // Extraer el año para simplificar
+  const year = currentMonth.year();
   useEffect(() => {
     const hd = new Holidays('CL');
     const holidaysData = hd.getHolidays(year);
     setHolidays(holidaysData);
-    console.log('Feriados cargados:', holidaysData);
+    // console.log('Feriados cargados:', holidaysData);
   }, [year]);
-  
 
+  // Elimina logs consecutivos de "Día: 2025-01-01, Tareas: 0", etc.
+  // => Quitamos console.log para que no aparezcan esas notificaciones.
   const countTasks = useMemo(() => {
     return (d) => {
       const dayStr = currentMonth.clone().date(d).format('YYYY-MM-DD');
       const count = tasks.filter((t) => dayIsBetween(dayStr, t.start, t.end)).length;
-      console.log(`Día: ${dayStr}, Tareas: ${count}`);
+      // No console.log, para evitar notificaciones seguidas
       return count;
     };
   }, [tasks, currentMonth]);
@@ -273,7 +326,7 @@ export default function CalendarComponent() {
       const dateMoment = currentMonth.clone().date(d);
       const dateStr = dateMoment.format('YYYY-MM-DD');
 
-      const holiday = holidays.find(holiday => holiday.date === dateStr);
+      const holiday = holidays.find((h) => h.date === dateStr);
       const isHoliday = !!holiday;
       const holidayName = holiday ? holiday.name : '';
 
@@ -282,9 +335,9 @@ export default function CalendarComponent() {
       cells.push(
         <div
           key={d}
-          className={`p-2 border border-gray-200 text-center relative cursor-pointer hover:bg-gray-100 rounded-lg h-24 flex flex-col justify-between ${
-            isHoliday ? 'bg-red-100 text-red-700' : isSunday ? 'text-red-500' : 'bg-white text-gray-800'
-          }`}
+          className={`p-2 border border-gray-200 text-center relative cursor-pointer 
+                     hover:bg-gray-100 rounded-lg h-24 flex flex-col justify-between 
+                     ${isHoliday ? 'bg-red-100 text-red-700' : isSunday ? 'text-red-500' : 'bg-white text-gray-800'}`}
           onClick={() => {
             setClickedDay(dateStr);
             setClickedHoliday(isHoliday ? holiday : null);
@@ -326,11 +379,10 @@ export default function CalendarComponent() {
   useEffect(() => {
     if (user && user.id) {
       fetchTasks(user.id)
-        .then(fetchedTasks => {
+        .then((fetchedTasks) => {
           setTasks(fetchedTasks);
-          console.log('Tareas cargadas desde el backend:', fetchedTasks);
         })
-        .catch(error => {
+        .catch((error) => {
           console.error('Error al cargar tareas:', error);
         });
     } else {
@@ -342,7 +394,7 @@ export default function CalendarComponent() {
   async function handleSaveTask(newTask) {
     try {
       const createdTask = await createTask(newTask);
-      setTasks(prev => [...prev, createdTask]);
+      setTasks((prev) => [...prev, createdTask]);
       setModalOpen(false);
       MySwal.fire({
         icon: 'success',
@@ -359,12 +411,14 @@ export default function CalendarComponent() {
   // Marcar tarea como completada o incompleta
   async function toggleCompleteTask(taskId) {
     try {
-      const taskToUpdate = tasks.find(task => task.id === taskId);
+      const taskToUpdate = tasks.find((task) => task.id === taskId);
       if (!taskToUpdate) throw new Error('Tarea no encontrada');
 
-      const updatedTask = await updateTask(taskId, { completed: !taskToUpdate.completed });
-      setTasks(prev =>
-        prev.map(task => (task.id === taskId ? updatedTask : task))
+      const updatedTask = await updateTask(taskId, {
+        completed: !taskToUpdate.completed,
+      });
+      setTasks((prev) =>
+        prev.map((task) => (task.id === taskId ? updatedTask : task))
       );
       MySwal.fire({
         icon: 'success',
@@ -388,7 +442,7 @@ export default function CalendarComponent() {
     try {
       const success = await deleteTaskAPI(taskId);
       if (success) {
-        setTasks(prev => prev.filter(task => task.id !== taskId));
+        setTasks((prev) => prev.filter((task) => task.id !== taskId));
         MySwal.fire({
           icon: 'success',
           title: 'Eliminado',
@@ -424,9 +478,9 @@ export default function CalendarComponent() {
 
   return (
     <div className="bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300">
-      {/* Encabezado del Calendario con Navegación y Botón Añadir Tarea */}
+      {/* Encabezado del Calendario */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 space-y-4 sm:space-y-0">
-        {/* Navegación de Meses */}
+        {/* Navegación Mes */}
         <div className="flex items-center space-x-2">
           <button
             onClick={prevMonth}
@@ -447,7 +501,7 @@ export default function CalendarComponent() {
           </button>
         </div>
 
-        {/* Botón Añadir Tarea Global */}
+        {/* Botón Añadir Tarea Hoy */}
         <button
           onClick={() => {
             const today = moment();
@@ -462,7 +516,7 @@ export default function CalendarComponent() {
         </button>
       </div>
 
-      {/* Encabezado de Días de la Semana */}
+      {/* Encabezado de Días (Lun - Dom) */}
       <div className="grid grid-cols-7 gap-1 mb-2">
         {['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'].map((ds, i) => (
           <div
@@ -475,17 +529,13 @@ export default function CalendarComponent() {
       </div>
 
       {/* Celdas del Calendario */}
-      <div className="grid grid-cols-7 gap-1">
-        {emptyCells}
-        {dayCells}
-      </div>
+      <div className="grid grid-cols-7 gap-1">{emptyCells}{dayCells}</div>
 
-      {/* Indicaciones */}
       <p className="text-sm text-gray-500 mt-2">
-      *Haz clic en un día para ver las tareas pendientes o usa el botón &quot;Añadir Tarea&quot; para agregar una tarea para hoy.
+        *Haz clic en un día para ver las tareas pendientes o usa el botón &quot;Añadir Tarea&quot; para agregar una tarea para hoy.
       </p>
 
-      {/* Modal para Crear Tarea */}
+      {/* Modal Crear Tarea */}
       <TaskModal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
@@ -493,7 +543,7 @@ export default function CalendarComponent() {
         defaultDay={clickedDay}
       />
 
-      {/* Modal para Ver y Gestionar Tareas */}
+      {/* Modal Ver Tareas (Segundo modal, responsivo con scrollbar) */}
       <ViewTasksModal
         isOpen={viewModalOpen}
         onClose={() => setViewModalOpen(false)}

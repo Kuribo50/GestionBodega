@@ -1,7 +1,6 @@
 // src/context/UserContext.js
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { toast } from 'react-toastify';
 import api from '../services/api'; // Asegúrate de que la ruta sea correcta
 
 // Crear el contexto
@@ -56,17 +55,7 @@ export const UserProvider = ({ children }) => {
         localStorage.setItem('user', JSON.stringify(userData));
         setUser(userData);
 
-        // Mostrar mensaje de bienvenida personalizado
-        const displayName = userData.full_name || userData.username || 'Usuario';
-        toast.success(`¡Bienvenido, ${displayName}!`, {
-          position: "top-center",
-          autoClose: 3000,
-          hideProgressBar: false,
-          closeOnClick: true,
-          pauseOnHover: false,
-          draggable: false,
-          progress: undefined,
-        });
+        // Aquí puedes implementar otras formas de notificación si lo deseas
 
         return true; // Login exitoso
       } else {
@@ -75,15 +64,7 @@ export const UserProvider = ({ children }) => {
     } catch (err) {
       console.error('Error en login:', err);
       setError('Credenciales incorrectas o error en el servidor.');
-      toast.error('Credenciales incorrectas o error en el servidor.', {
-        position: "top-center",
-        autoClose: 5000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
-        progress: undefined,
-      });
+      // Aquí puedes implementar otras formas de notificación de errores si lo deseas
       return false; // Login fallido
     } finally {
       setLoading(false);
@@ -96,15 +77,7 @@ export const UserProvider = ({ children }) => {
     localStorage.removeItem('refresh_token');
     localStorage.removeItem('user');
     setUser(null);
-    toast.info('Has cerrado sesión.', {
-      position: "top-center",
-      autoClose: 3000,
-      hideProgressBar: false,
-      closeOnClick: true,
-      pauseOnHover: false,
-      draggable: false,
-      progress: undefined,
-    });
+    // Aquí puedes implementar otras formas de notificación si lo deseas
   };
 
   return (

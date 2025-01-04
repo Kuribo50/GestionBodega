@@ -46,7 +46,7 @@ export default function Prestamos() {
   const [selectedPersonal, setSelectedPersonal] = useState(null);
   const [formData, setFormData] = useState({
     tipoMovimiento: "Prestamo",
-    fecha: new Date().toISOString().split("T")[0],
+    fecha: getCurrentDateTime(), // Función para obtener la fecha y hora actual en Chile
     motivo: "", // Se establecerá por defecto en fetchData
   });
 
@@ -73,6 +73,27 @@ export default function Prestamos() {
 
   // Estado para manejar la visibilidad de la sidebar en pantallas pequeñas
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  // Función para obtener la fecha y hora actual en la zona horaria de Chile
+  function getCurrentDateTime() {
+    const now = new Date();
+    const formatter = new Intl.DateTimeFormat("sv-SE", {
+      timeZone: "America/Santiago",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    });
+    const parts = formatter.formatToParts(now);
+    const dateParts = {};
+    parts.forEach(({ type, value }) => {
+      dateParts[type] = value;
+    });
+    // Formato: YYYY-MM-DDTHH:mm
+    return `${dateParts.year}-${dateParts.month}-${dateParts.day}T${dateParts.hour}:${dateParts.minute}`;
+  }
 
   // Función para formatear el label de los artículos
   const formatArticuloLabel = useCallback((articulo) => {
@@ -136,6 +157,22 @@ export default function Prestamos() {
     if (minutes < 60) return `${minutes} minuto(s)`;
     if (hours < 24) return `${hours} hora(s)`;
     return `${days} día(s)`;
+  };
+
+  // Función para formatear la fecha y hora según la zona horaria de Chile
+  const formatDateTime = (isoString) => {
+    if (!isoString) return "-"; // Retorna un guion si no hay fecha
+    const date = new Date(isoString);
+    if (isNaN(date.getTime())) return "Fecha inválida"; // Maneja fechas inválidas
+    const formatter = new Intl.DateTimeFormat("es-CL", {
+      timeZone: "America/Santiago",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+    return formatter.format(date).replace(",", "");
   };
 
   // Función para obtener datos al montar el componente
@@ -251,6 +288,9 @@ export default function Prestamos() {
             fecha_prestamo: mov.fecha,
           });
 
+          // Verificar si la fecha es válida
+          const fechaValida = !isNaN(new Date(mov.fecha).getTime());
+
           // Agregar una nueva fila al historial
           mappedHistorial.push({
             id: mov.id,
@@ -261,11 +301,12 @@ export default function Prestamos() {
               personalObj.correo_institucional || "Sin Correo",
             nombre: personalObj.nombre || "Sin Nombre",
             seccion: personalObj.seccion || "Sin Sección",
-            tipo_movimiento: "Prestamo", // Siempre "Prestamo"
+            tipo_movimiento: "Prestamo",
             cantidad: mov.cantidad || 0,
-            fecha_prestamo: new Date(mov.fecha).toLocaleString(), // Renombrado y formateado
-            fecha_regreso: "-", // Aún no se ha regresado
+            fecha_prestamo: fechaValida ? formatDateTime(mov.fecha) : "Fecha inválida",
+            fecha_regreso: "-", 
             duracion: "Aún no se ha regresado",
+            fecha_movimiento: mov.fecha ? mov.fecha : null, // Asignar null si no hay fecha
           });
         } else if (mov.tipo_movimiento === "Regresado") {
           if (prestamosMap[key] && prestamosMap[key].length > 0) {
@@ -291,9 +332,12 @@ export default function Prestamos() {
                 (fila) => fila.id === prestamoPendiente.mov_id
               );
               if (filaPrestamo) {
-                filaPrestamo.fecha_regreso = new Date(mov.fecha).toLocaleString();
+                filaPrestamo.fecha_regreso = formatDateTime(mov.fecha);
                 filaPrestamo.duracion = formattedDuration; // Actualizar con duración formateada
               }
+
+              // Verificar si la fecha es válida
+              const fechaValida = !isNaN(new Date(mov.fecha).getTime());
 
               // Agregar una nueva fila de "Regresado" al historial
               mappedHistorial.push({
@@ -305,16 +349,19 @@ export default function Prestamos() {
                   personalObj.correo_institucional || "Sin Correo",
                 nombre: personalObj.nombre || "Sin Nombre",
                 seccion: personalObj.seccion || "Sin Sección",
-                tipo_movimiento: "Regresado", // Correcto
+                tipo_movimiento: "Regresado",
                 cantidad: mov.cantidad || 0,
-                fecha_prestamo: new Date(
+                fecha_prestamo: formatDateTime(
                   prestamoPendiente.fecha_prestamo
-                ).toLocaleString(),
-                fecha_regreso: new Date(mov.fecha).toLocaleString(),
-                duracion: formattedDuration, // Usar duración formateada
+                ),
+                fecha_regreso: fechaValida ? formatDateTime(mov.fecha) : "Fecha inválida",
+                duracion: formattedDuration,
+                fecha_movimiento: mov.fecha ? mov.fecha : null, // Asignar null si no hay fecha
               });
             } else {
               // No se encontró un préstamo adecuado para esta devolución
+              const fechaValida = !isNaN(new Date(mov.fecha).getTime());
+
               mappedHistorial.push({
                 id: mov.id,
                 articulo_id: mov.articulo,
@@ -324,15 +371,18 @@ export default function Prestamos() {
                   personalObj.correo_institucional || "Sin Correo",
                 nombre: personalObj.nombre || "Sin Nombre",
                 seccion: personalObj.seccion || "Sin Sección",
-                tipo_movimiento: "Regresado", // Correcto
+                tipo_movimiento: "Regresado",
                 cantidad: mov.cantidad || 0,
                 fecha_prestamo: "-",
-                fecha_regreso: new Date(mov.fecha).toLocaleString(),
+                fecha_regreso: fechaValida ? formatDateTime(mov.fecha) : "Fecha inválida",
                 duracion: "No se encontró el Prestamo",
+                fecha_movimiento: mov.fecha ? mov.fecha : null, // Asignar null si no hay fecha
               });
             }
           } else {
             // No hay Prestamo correspondiente, agregar una fila de Regresado sin Prestamo
+            const fechaValida = !isNaN(new Date(mov.fecha).getTime());
+
             mappedHistorial.push({
               id: mov.id,
               articulo_id: mov.articulo,
@@ -342,11 +392,12 @@ export default function Prestamos() {
                 personalObj.correo_institucional || "Sin Correo",
               nombre: personalObj.nombre || "Sin Nombre",
               seccion: personalObj.seccion || "Sin Sección",
-              tipo_movimiento: "Regresado", // Correcto
+              tipo_movimiento: "Regresado",
               cantidad: mov.cantidad || 0,
               fecha_prestamo: "-",
-              fecha_regreso: new Date(mov.fecha).toLocaleString(),
+              fecha_regreso: fechaValida ? formatDateTime(mov.fecha) : "Fecha inválida",
               duracion: "No se encontró el Prestamo",
+              fecha_movimiento: mov.fecha ? mov.fecha : null, // Asignar null si no hay fecha
             });
           }
         }
@@ -362,6 +413,7 @@ export default function Prestamos() {
         icon: "error",
         title: "Error",
         text: "No se pudo cargar la información.",
+        confirmButtonColor: "#dc3545", // Botón rojo
       });
     } finally {
       setIsLoading(false);
@@ -423,6 +475,7 @@ export default function Prestamos() {
           icon: "success",
           title: "Éxito",
           text: "Motivo creado correctamente.",
+          confirmButtonColor: "#28a745", // Botón verde
         });
       } catch (error) {
         console.error("Error al crear motivo:", error);
@@ -430,6 +483,7 @@ export default function Prestamos() {
           icon: "error",
           title: "Error",
           text: "Error al crear el motivo.",
+          confirmButtonColor: "#dc3545", // Botón rojo
         });
       }
     } else {
@@ -453,7 +507,8 @@ export default function Prestamos() {
   const handlePersonalSelect = (selectedOption) => {
     setSelectedPersonal(selectedOption);
     // Resetear motivo al cambiar de personal para evitar inconsistencias
-    setFormData((prev) => ({ ...prev, motivo: "" }));
+    // Si deseas mantener 'motivo' al cambiar de personal, comenta o elimina la siguiente línea
+    // setFormData((prev) => ({ ...prev, motivo: "" }));
     // Resetear artículos seleccionados
     setSelectedArticulos([]);
     setCantidades({});
@@ -495,11 +550,23 @@ export default function Prestamos() {
         icon: "warning",
         title: "Campos requeridos",
         text: "Todos los campos obligatorios deben estar completos.",
+        confirmButtonText: "Aceptar",
+        confirmButtonColor: "#dc3545", // Botón rojo
       });
       return false;
     }
 
-    // "Motivo" no es obligatorio, se manejará en handleSubmit
+    // Validar que se seleccione un motivo
+    if (!formData.motivo) {
+      Swal.fire({
+        icon: "warning",
+        title: "Motivo requerido",
+        text: "Debe seleccionar un motivo para el movimiento.",
+        confirmButtonText: "Aceptar",
+        confirmButtonColor: "#dc3545", // Botón rojo
+      });
+      return false;
+    }
 
     for (const articulo of selectedArticulos) {
       const cantidad = cantidades[articulo.value];
@@ -508,6 +575,8 @@ export default function Prestamos() {
           icon: "warning",
           title: "Cantidad inválida",
           text: `La cantidad para el artículo "${articulo.label}" debe ser un número positivo.`,
+          confirmButtonText: "Aceptar",
+          confirmButtonColor: "#dc3545", // Botón rojo
         });
         return false;
       }
@@ -518,6 +587,8 @@ export default function Prestamos() {
           icon: "error",
           title: "Error",
           text: `No se encontró información para el artículo "${articulo.label}".`,
+          confirmButtonText: "Aceptar",
+          confirmButtonColor: "#dc3545", // Botón rojo
         });
         return false;
       }
@@ -528,6 +599,8 @@ export default function Prestamos() {
             icon: "warning",
             title: "Stock insuficiente",
             text: `No hay suficiente stock disponible para el artículo "${articulo.label}". Stock actual: ${articuloData.stock_total}.`,
+            confirmButtonText: "Aceptar",
+            confirmButtonColor: "#dc3545", // Botón rojo
           });
           return false;
         }
@@ -539,6 +612,8 @@ export default function Prestamos() {
             icon: "warning",
             title: "Cantidad excedida",
             text: `La cantidad a devolver para el artículo "${articulo.label}" excede la cantidad prestada por este personal. Cantidad prestada: ${cantidadPrestada}.`,
+            confirmButtonText: "Aceptar",
+            confirmButtonColor: "#dc3545", // Botón rojo
           });
           return false;
         }
@@ -563,7 +638,9 @@ export default function Prestamos() {
             Swal.fire({
               icon: "warning",
               title: "Fecha inválida",
-              text: `La fecha de regreso no puede ser anterior a la fecha de préstamo (${lastPrestamo.fecha_prestamo}).`,
+              text: `La fecha de regreso no puede ser anterior a la fecha de préstamo (${formatDateTime(lastPrestamo.fecha_prestamo)}).`,
+              confirmButtonText: "Aceptar",
+              confirmButtonColor: "#dc3545", // Botón rojo
             });
             return false;
           }
@@ -582,25 +659,30 @@ export default function Prestamos() {
     setIsSubmitting(true);
     setIsRefreshing(true); // Indica que se está re-fetching
     try {
-      // Si 'motivo' no está seleccionado, asignar el motivo por defecto
-      const motivoFinal =
-        formData.motivo ||
-        motivos.find(
-          (m) => m.label.toLowerCase() === "solicitud de personal"
-        )?.value;
-
       // Dividir movimientos en solicitudes individuales para manejar errores por movimiento
       for (const articulo of selectedArticulos) {
         const cantidad = cantidades[articulo.value];
         const esPrestamo = formData.tipoMovimiento === "Prestamo";
+
+        // Validar motivo
+        if (!formData.motivo) {
+          Swal.fire({
+            icon: "warning",
+            title: "Motivo requerido",
+            text: "Debe seleccionar un motivo para el movimiento.",
+            confirmButtonText: "Aceptar",
+            confirmButtonColor: "#dc3545", // Botón rojo
+          });
+          return;
+        }
 
         let movimientoPayload = {
           articulo: articulo.value,
           tipo_movimiento: esPrestamo ? "Prestamo" : "Regresado",
           cantidad: cantidad,
           personal: selectedPersonal.value,
-          motivo: motivoFinal,
-          fecha: new Date().toISOString(),
+          motivo: formData.motivo,
+          fecha: new Date().toISOString(), // Utilizar formato ISO estándar
         };
 
         console.log(`Payload de Movimiento:`, movimientoPayload); // Log de depuración
@@ -625,12 +707,16 @@ export default function Prestamos() {
               icon: "error",
               title: "Error",
               text: `No se pudo registrar la devolución para el artículo "${articulo.label}". Por favor, regrese los artículos uno a uno.`,
+              confirmButtonText: "Aceptar",
+              confirmButtonColor: "#dc3545", // Botón rojo
             });
           } else {
             Swal.fire({
               icon: "error",
               title: "Error",
               text: `No se pudo registrar el préstamo para el artículo "${articulo.label}".`,
+              confirmButtonText: "Aceptar",
+              confirmButtonColor: "#dc3545", // Botón rojo
             });
           }
         }
@@ -640,18 +726,22 @@ export default function Prestamos() {
         icon: "success",
         title: "Éxito",
         text: "Movimiento registrado correctamente.",
+        confirmButtonText: "Aceptar",
+        confirmButtonColor: "#28a745", // Botón verde
       });
 
-      // Resetear el formulario
-      setFormData({
-        tipoMovimiento: "Prestamo",
-        fecha: new Date().toISOString().split("T")[0],
-        motivo: "",
-      });
+      // Resetear el formulario, manteniendo 'tipoMovimiento' y 'motivo'
+      setFormData((prev) => ({
+        ...prev,
+        fecha: getCurrentDateTime(),
+        // 'tipoMovimiento' y 'motivo' permanecen sin cambios
+      }));
       setSelectedArticulos([]);
       setSelectedPersonal(null);
       setCantidades({});
       setSearchTerm("");
+      setFilterTipoMovimiento("Todos"); // Resetear filtro de la tabla
+      // Si deseas mantener 'motivo' al resetear, asegúrate de no limpiarlo aquí.
 
       // Re-fetch los datos para actualizar articulos y historial
       await fetchData();
@@ -661,6 +751,8 @@ export default function Prestamos() {
         icon: "error",
         title: "Error",
         text: "No se pudo registrar el movimiento.",
+        confirmButtonText: "Aceptar",
+        confirmButtonColor: "#dc3545", // Botón rojo
       });
     } finally {
       setIsSubmitting(false);
@@ -753,6 +845,14 @@ export default function Prestamos() {
         Header: "Duración",
         accessor: "duracion",
       },
+      {
+        Header: "Fecha de Movimiento", // Nueva columna
+        accessor: "fecha_movimiento",
+        Cell: ({ value }) => formatDateTime(value),
+        // Puedes ocultar esta columna visualmente si no deseas mostrarla
+        // por ejemplo, usando una clase CSS para ocultarla:
+        // className: "hidden",
+      },
     ],
     []
   );
@@ -782,7 +882,7 @@ export default function Prestamos() {
           itemsPerPage === "Todos" ? filteredHistorial.length : itemsPerPage,
         sortBy: [
           {
-            id: "fecha_prestamo",
+            id: "fecha_movimiento", // Cambiado a 'fecha_movimiento'
             desc: true, // Orden descendente por defecto
           },
         ],
@@ -805,6 +905,15 @@ export default function Prestamos() {
   const handleItemsPerPageChange = (selectedOption) => {
     const value = selectedOption.value;
     setItemsPerPage(value);
+  };
+
+  // Manejo de cambio en el tipo de movimiento sin resetear 'motivo'
+  const handleTipoMovimientoChange = (selectedOption) => {
+    setFormData((prev) => ({
+      ...prev,
+      tipoMovimiento: selectedOption.value,
+      // motivo: "", // Eliminado para mantener el motivo
+    }));
   };
 
   return (
@@ -877,26 +986,25 @@ export default function Prestamos() {
                   label: formData.tipoMovimiento,
                   value: formData.tipoMovimiento,
                 }}
-                onChange={(selectedOption) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    tipoMovimiento: selectedOption.value,
-                    motivo: "", // Resetear motivo al cambiar tipo de movimiento
-                  }))
-                }
+                onChange={handleTipoMovimientoChange} // Usar el manejador actualizado
                 placeholder="Seleccionar Tipo de Movimiento"
                 instanceId="select-tipo-movimiento"
               />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Motivo
+                Motivo <span className="text-red-500">*</span>
               </label>
               <CreatableSelect
                 options={motivos}
                 onChange={handleMotivoChange}
                 placeholder="Seleccionar o Crear Motivo"
                 isClearable
+                value={
+                  formData.motivo
+                    ? motivos.find((m) => m.value === formData.motivo)
+                    : null
+                }
                 instanceId="create-motivo"
               />
             </div>
@@ -910,12 +1018,11 @@ export default function Prestamos() {
               </label>
               <div className="relative">
                 <input
-                  type="date"
+                  type="datetime-local"
                   value={formData.fecha}
                   onChange={(e) =>
                     setFormData((prev) => ({ ...prev, fecha: e.target.value }))
                   }
-                  max={new Date().toISOString().split("T")[0]}
                   className="w-full px-4 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500"
                   required
                 />
@@ -995,11 +1102,11 @@ export default function Prestamos() {
             <button
               type="button"
               onClick={() => {
-                setFormData({
-                  tipoMovimiento: "Prestamo",
-                  fecha: new Date().toISOString().split("T")[0],
-                  motivo: "",
-                });
+                setFormData((prev) => ({
+                  ...prev,
+                  fecha: getCurrentDateTime(),
+                  // tipoMovimiento y motivo permanecen sin cambios
+                }));
                 setSelectedArticulos([]);
                 setSelectedPersonal(null);
                 setCantidades({});
@@ -1184,7 +1291,6 @@ export default function Prestamos() {
                         title="Primera Página"
                       >
                         <FiArrowLeft />
-                        {/* Se eliminó el segundo icono para evitar duplicación */}
                       </button>
                       <button
                         onClick={() => previousPage()}
@@ -1215,7 +1321,6 @@ export default function Prestamos() {
                         title="Última Página"
                       >
                         <FiArrowRight />
-                        {/* Se eliminó el segundo icono para evitar duplicación */}
                       </button>
                     </div>
                     <span className="text-gray-700 mb-2 sm:mb-0">
@@ -1255,6 +1360,8 @@ export default function Prestamos() {
                     icon: "warning",
                     title: "Correo requerido",
                     text: "Por favor, ingresa el correo institucional.",
+                    confirmButtonText: "Aceptar",
+                    confirmButtonColor: "#dc3545", // Botón rojo
                   });
                   return;
                 }
@@ -1266,6 +1373,8 @@ export default function Prestamos() {
                     icon: "warning",
                     title: "Correo inválido",
                     text: "Por favor, ingresa un correo institucional válido.",
+                    confirmButtonText: "Aceptar",
+                    confirmButtonColor: "#dc3545", // Botón rojo
                   });
                   return;
                 }
@@ -1300,6 +1409,8 @@ export default function Prestamos() {
                     icon: "success",
                     title: "Éxito",
                     text: "Persona agregada correctamente.",
+                    confirmButtonText: "Aceptar",
+                    confirmButtonColor: "#28a745", // Botón verde
                   });
                 } catch (error) {
                   console.error("Error al crear persona:", error);
@@ -1307,6 +1418,8 @@ export default function Prestamos() {
                     icon: "error",
                     title: "Error",
                     text: "No se pudo crear la persona.",
+                    confirmButtonText: "Aceptar",
+                    confirmButtonColor: "#dc3545", // Botón rojo
                   });
                 }
               }}

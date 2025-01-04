@@ -2,51 +2,52 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Modal from 'react-modal';
-import { FaSave, FaTimes, FaEdit, FaTrash, FaPlus } from 'react-icons/fa';
+import { FaEdit, FaSave, FaTimes, FaTrash, FaSearch, FaPlus } from 'react-icons/fa';
 import Swal from 'sweetalert2';
 import withReactContent from 'sweetalert2-react-content';
 import {
-  fetchCategorias,
-  createCategoria,
-  updateCategoria,
-  deleteCategoria,
-  fetchArticulos, // Para verificar artículos asociados
-  updateArticulos, // Para actualizar categorías de artículos
-} from '../../services/api'; // Asegúrate de que estas funciones están correctamente definidas en tu API
+  fetchCategorias, // Asegúrate de tener esta función
+  fetchArticulos,
+  createCategoria, // Asegúrate de tener esta función
+  updateCategoria, // Asegúrate de tener esta función
+  deleteCategoria, // Asegúrate de tener esta función
+  updateArticulos, // Asegúrate de tener esta función para actualizar artículos
+} from '@/services/api';
 
-// Configurar SweetAlert2 con React Content
 const MySwal = withReactContent(Swal);
 
 // Configurar el elemento raíz para accesibilidad
 Modal.setAppElement('#__next');
 
+// Función para capitalizar la primera letra (para mostrar errores)
+const capitalize = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+
+// Componente CategoriaModal
 const CategoriaModal = ({ isOpen, onRequestClose }) => {
   // Estados para el Modal Principal
   const [categorias, setCategorias] = useState([]);
-  const [articulos, setArticulos] = useState([]); // Para verificar artículos asociados
-  const [loading, setLoading] = useState(false);
+  const [articulos, setArticulos] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [editingId, setEditingId] = useState(null);
-  const [editedNombre, setEditedNombre] = useState('');
-  const [editedDescripcion, setEditedDescripcion] = useState('');
-  const [errors, setErrors] = useState({
-    nombre: false,
-  });
+  const [editedName, setEditedName] = useState('');
+  const [editedDescription, setEditedDescription] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
+  const [associatedArticulos, setAssociatedArticulos] = useState([]);
+
+  // Nuevo estado para manejar el indicador de carga durante la eliminación
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Estados para el Modal de Creación
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [newNombre, setNewNombre] = useState('');
-  const [newDescripcion, setNewDescripcion] = useState('');
-  const [createErrors, setCreateErrors] = useState({
-    nombre: false,
-  });
+  const [newName, setNewName] = useState('');
+  const [newDescription, setNewDescription] = useState('');
 
   // Cargar los datos al abrir el modal principal
   useEffect(() => {
     if (isOpen) {
       loadData();
-      resetEditForm();
-      resetCreateForm();
+      resetForm();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
@@ -55,143 +56,272 @@ const CategoriaModal = ({ isOpen, onRequestClose }) => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [categoriaData, articuloData] = await Promise.all([
+      const [categoriaData, artData] = await Promise.all([
         fetchCategorias(),
         fetchArticulos(),
       ]);
       setCategorias(categoriaData.results || categoriaData);
-      setArticulos(articuloData.results || articuloData);
+      setArticulos(artData.results || artData);
     } catch (error) {
-      Swal.fire('Error', 'Error al cargar los datos de categorías o artículos.', 'error');
+      console.error('Error cargando datos:', error);
+      MySwal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'No se pudieron cargar las categorías o artículos.',
+        customClass: {
+          confirmButton: 'bg-red-600 text-white px-4 py-2 rounded-md',
+        },
+        buttonsStyling: false,
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  // Función para resetear el formulario de edición
-  const resetEditForm = () => {
+  // Función para resetear el formulario
+  const resetForm = () => {
+    setSearchTerm('');
     setEditingId(null);
-    setEditedNombre('');
-    setEditedDescripcion('');
-    setErrors({
-      nombre: false,
-    });
-  };
-
-  // Función para resetear el formulario de creación
-  const resetCreateForm = () => {
-    setNewNombre('');
-    setNewDescripcion('');
-    setCreateErrors({
-      nombre: false,
-    });
+    setEditedName('');
+    setEditedDescription('');
+    setDeletingId(null);
+    setAssociatedArticulos([]);
+    setNewName('');
+    setNewDescription('');
   };
 
   // Función para manejar la edición de una categoría
-  const handleEdit = (c) => {
-    setEditingId(c.id);
-    setEditedNombre(c.nombre);
-    setEditedDescripcion(c.descripcion || '');
-    setErrors({
-      nombre: false,
-    });
+  const handleEdit = (categoria) => {
+    setEditingId(categoria.id);
+    setEditedName(categoria.nombre);
+    setEditedDescription(categoria.descripcion || '');
   };
 
   // Función para guardar los cambios de edición
-  const handleSaveEdit = async () => {
-    // Validaciones de nombre
-    const newErrors = {
-      nombre: !editedNombre.trim(),
-    };
-
-    if (Object.values(newErrors).some((err) => err)) {
-      setErrors(newErrors);
-      Swal.fire('Error', 'Por favor, complete el nombre de la categoría.', 'error');
+  const handleSave = async (id) => {
+    if (!editedName.trim()) {
+      MySwal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'El nombre no puede estar vacío.',
+        customClass: {
+          confirmButton: 'bg-red-600 text-white px-4 py-2 rounded-md',
+        },
+        buttonsStyling: false,
+      });
       return;
     }
 
-    // Validar duplicados en el nombre de categoría
-    const nombreDuplicado = categorias.some(
-      (c) =>
-        c.nombre.toLowerCase() === editedNombre.trim().toLowerCase() &&
-        c.id !== editingId
+    const nameExists = categorias.some(
+      (c) => c.nombre.toLowerCase() === editedName.trim().toLowerCase() && c.id !== id
     );
 
-    if (nombreDuplicado) {
-      Swal.fire('Error', 'Ya existe una categoría con este nombre.', 'error');
-      setErrors({ ...newErrors, nombre: true });
+    if (nameExists) {
+      MySwal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Ya existe una categoría con este nombre.',
+        customClass: {
+          confirmButton: 'bg-red-600 text-white px-4 py-2 rounded-md',
+        },
+        buttonsStyling: false,
+      });
       return;
     }
 
-    // Asignar valor predeterminado si está en blanco
-    const payload = {
-      nombre: editedNombre.trim(),
-      descripcion: editedDescripcion.trim() || '',
-    };
-
-    // Guardar los datos
     try {
-      const updatedCategoria = await updateCategoria(editingId, payload);
-      Swal.fire('Éxito', 'La categoría se actualizó correctamente.', 'success');
-      setCategorias((prev) =>
-        prev.map((c) => (c.id === editingId ? { ...c, ...updatedCategoria } : c))
+      // Asumiendo que updateCategoria acepta un objeto payload
+      const payload = {
+        nombre: editedName.trim(),
+        descripcion: editedDescription.trim() ? editedDescription.trim() : 'Sin descripción',
+      };
+
+      const updated = await updateCategoria(id, payload);
+      setCategorias((prevCategorias) =>
+        prevCategorias.map((c) => (c.id === id ? updated : c))
       );
-      resetEditForm();
+
+      MySwal.fire({
+        icon: 'success',
+        title: 'Éxito',
+        text: 'Categoría actualizada correctamente.',
+        customClass: {
+          confirmButton: 'bg-green-600 text-white px-4 py-2 rounded-md',
+        },
+        buttonsStyling: false,
+      });
+
+      setEditingId(null);
+      setEditedName('');
+      setEditedDescription('');
     } catch (error) {
-      Swal.fire('Error', 'Ocurrió un error al actualizar la categoría.', 'error');
+      console.error('Error al actualizar la categoría:', error);
+      if (error.response && error.response.data) {
+        const errors = error.response.data;
+        const errorMessages = Object.keys(errors).map(key => {
+          return Array.isArray(errors[key]) 
+            ? errors[key].map(msg => `${capitalize(key)}: ${msg}`).join('<br/>')
+            : `${capitalize(key)}: ${errors[key]}`;
+        }).join('<br/>');
+        MySwal.fire({
+          icon: 'error',
+          title: 'Error',
+          html: errorMessages,
+          customClass: {
+            confirmButton: 'bg-red-600 text-white px-4 py-2 rounded-md',
+          },
+          buttonsStyling: false,
+        });
+      } else {
+        MySwal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'Ocurrió un error al actualizar la categoría.',
+          customClass: {
+            confirmButton: 'bg-red-600 text-white px-4 py-2 rounded-md',
+          },
+          buttonsStyling: false,
+        });
+      }
     }
   };
 
   // Función para manejar la eliminación de una categoría
   const handleDelete = async (id) => {
-    try {
-      // Verificar si la categoría está asociada a algún artículo
-      const asociados = articulos.filter((articulo) => articulo.categoria === id);
-      if (asociados.length > 0) {
-        // Mostrar alerta con la cantidad de artículos asociados
-        const result = await MySwal.fire({
-          title: 'Categoría Asociada',
-          html: `
-            <p>Esta categoría está asociada a ${asociados.length} artículo(s).</p>
-            <p>¿Deseas cambiar la categoría de estos artículos a "Sin categoría" o dejarla en blanco?</p>
-          `,
-          icon: 'warning',
-          showCancelButton: true,
-          confirmButtonText: 'Sin categoría',
-          cancelButtonText: 'Dejar en blanco',
-        });
-
-        if (result.isConfirmed) {
-          // Cambiar a "Sin categoría" (asumiendo que existe una categoría con nombre "Sin categoría")
-          await updateArticulos(asociados.map((a) => a.id), { categoria: null });
-        } else if (result.dismiss === Swal.DismissReason.cancel) {
-          // Dejar en blanco (null)
-          await updateArticulos(asociados.map((a) => a.id), { categoria: null });
-        } else {
-          // Cancelar eliminación
-          return;
-        }
-      }
-
-      // Confirmar eliminación
-      const confirm = await MySwal.fire({
-        title: '¿Estás seguro?',
-        text: 'Esta acción eliminará la categoría de forma permanente.',
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonText: 'Sí, eliminar',
-        cancelButtonText: 'Cancelar',
-      });
-
-      if (confirm.isConfirmed) {
-        await deleteCategoria(id);
-        Swal.fire('Éxito', 'La categoría fue eliminada correctamente.', 'success');
-        setCategorias((prev) => prev.filter((c) => c.id !== id));
-      }
-    } catch (error) {
-      Swal.fire('Error', 'Ocurrió un error al eliminar la categoría.', 'error');
+    const asociados = articulos.filter((a) => a.categoria === id);
+    if (asociados.length > 0) {
+      setAssociatedArticulos(asociados);
+      setDeletingId(id);
+      return;
     }
+
+    confirmDelete(id, []);
   };
+
+  // Función de confirmación de eliminación
+  const confirmDelete = useCallback(async (id, asociadosList) => {
+    const hasAsociados = asociadosList.length > 0;
+
+    const result = await MySwal.fire({
+      title: '¿Estás seguro?',
+      text: hasAsociados
+        ? `Esta acción eliminará la categoría y dejará ${asociadosList.length} artículo(s) sin categoría.`
+        : 'Esta acción eliminará la categoría de forma permanente.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Sí, eliminar',
+      cancelButtonText: 'Cancelar',
+      reverseButtons: true,
+      focusCancel: true,
+      customClass: {
+        confirmButton: 'bg-green-600 text-white px-4 py-2 rounded-md',
+        cancelButton: 'bg-red-600 text-white px-4 py-2 rounded-md',
+      },
+      buttonsStyling: false,
+    });
+
+    if (result.isConfirmed) {
+      try {
+        // Establecer el estado de carga
+        setIsDeleting(true);
+
+        // Si hay artículos asociados, actualizarlos para que no tengan categoría
+        if (hasAsociados) {
+          // Usar la forma funcional para evitar depender de 'articulos'
+          await Promise.all(
+            asociadosList.map((articulo) =>
+              updateArticulos(articulo.id, { categoria: "" }) // O usa null según tu API
+            )
+          );
+
+          MySwal.fire({
+            icon: 'success',
+            title: 'Actualizado',
+            text: 'Los artículos asociados ahora están sin categoría.',
+            customClass: {
+              confirmButton: 'bg-green-600 text-white px-4 py-2 rounded-md',
+            },
+            buttonsStyling: false,
+          });
+        }
+
+        // Eliminar la categoría
+        await deleteCategoria(id);
+        MySwal.fire({
+          icon: 'success',
+          title: 'Éxito',
+          text: 'La categoría fue eliminada correctamente.',
+          customClass: {
+            confirmButton: 'bg-green-600 text-white px-4 py-2 rounded-md',
+          },
+          buttonsStyling: false,
+        });
+        setCategorias((prevCategorias) => prevCategorias.filter((c) => c.id !== id));
+      } catch (error) {
+        console.error('Error al eliminar la categoría:', error);
+        MySwal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'Ocurrió un error al eliminar la categoría.',
+          customClass: {
+            confirmButton: 'bg-red-600 text-white px-4 py-2 rounded-md',
+          },
+          buttonsStyling: false,
+        });
+      } finally {
+        // Finalizar el estado de carga
+        setIsDeleting(false);
+      }
+    }
+  }, []); // Eliminamos 'deleteCategoria' y 'updateArticulos' de las dependencias
+
+  // Función para confirmar la eliminación con artículos asociados
+  const confirmDeleteWithArticulos = useCallback(async () => {
+    if (!deletingId) return;
+
+    const asociadosList = associatedArticulos;
+
+    // Construir la lista HTML de artículos afectados
+    const articuloListHTML = asociadosList.map((articulo) => {
+      return `• Nombre: ${articulo.nombre}, Stock: ${articulo.stock_actual}, Código Minvu: ${articulo.codigo_minvu || 'N/A'}, Código Interno: ${articulo.codigo_interno || 'N/A'}, Nº Serie: ${articulo.numero_serie || 'N/A'}`;
+    }).join('<br/>');
+
+    const result = await MySwal.fire({
+      title: '¿Estás seguro?',
+      html: `
+        <p>La categoría seleccionada está asociada a <strong>${asociadosList.length}</strong> artículo(s):</p>
+        <div style="max-height: 200px; overflow-y: auto; text-align: left;">
+          ${articuloListHTML}
+        </div>
+        <p>¿Deseas eliminarla? Los artículos asociados tendrán su categoría establecida en blanco.</p>
+      `,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Sí, eliminar',
+      cancelButtonText: 'Cancelar',
+      reverseButtons: true,
+      focusCancel: true,
+      customClass: {
+        confirmButton: 'bg-green-600 text-white px-4 py-2 rounded-md',
+        cancelButton: 'bg-red-600 text-white px-4 py-2 rounded-md',
+      },
+      buttonsStyling: false,
+    });
+
+    if (result.isConfirmed) {
+      confirmDelete(deletingId, asociadosList);
+    } else {
+      setDeletingId(null);
+      setAssociatedArticulos([]);
+    }
+  }, [deletingId, associatedArticulos, confirmDelete]); // 'confirmDelete' ya no depende de 'deleteCategoria' y 'updateArticulos'
+
+  // Manejar el efecto de eliminación con artículos asociados
+  useEffect(() => {
+    if (deletingId && associatedArticulos.length > 0) {
+      confirmDeleteWithArticulos();
+    }
+  }, [deletingId, associatedArticulos.length, confirmDeleteWithArticulos]);
 
   // Función para manejar la apertura del modal de creación
   const openCreateModal = () => {
@@ -199,66 +329,109 @@ const CategoriaModal = ({ isOpen, onRequestClose }) => {
     resetCreateForm();
   };
 
+  // Función para resetear el formulario de creación
+  const resetCreateForm = () => {
+    setNewName('');
+    setNewDescription('');
+  };
+
   // Función para manejar la creación de una nueva categoría
   const handleCreate = async () => {
-    // Validaciones de nombre
-    const newErrors = {
-      nombre: !newNombre.trim(),
-    };
-
-    if (Object.values(newErrors).some((err) => err)) {
-      setCreateErrors(newErrors);
-      Swal.fire('Error', 'Por favor, complete el nombre de la categoría.', 'error');
+    if (!newName.trim()) {
+      MySwal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'El nombre de la categoría no puede estar vacío.',
+        customClass: {
+          confirmButton: 'bg-red-600 text-white px-4 py-2 rounded-md',
+        },
+        buttonsStyling: false,
+      });
       return;
     }
 
-    // Validar duplicados en el nombre de categoría
-    const nombreDuplicado = categorias.some(
-      (c) => c.nombre.toLowerCase() === newNombre.trim().toLowerCase()
+    const nameExists = categorias.some(
+      (c) => c.nombre.toLowerCase() === newName.trim().toLowerCase()
     );
 
-    if (nombreDuplicado) {
-      Swal.fire('Error', 'Ya existe una categoría con este nombre.', 'error');
-      setCreateErrors({ ...newErrors, nombre: true });
+    if (nameExists) {
+      MySwal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Ya existe una categoría con este nombre.',
+        customClass: {
+          confirmButton: 'bg-red-600 text-white px-4 py-2 rounded-md',
+        },
+        buttonsStyling: false,
+      });
       return;
     }
 
-    // Asignar valor predeterminado si está en blanco
-    const payload = {
-      nombre: newNombre.trim(),
-      descripcion: newDescripcion.trim() || '',
-    };
-
-    // Crear la nueva categoría
     try {
-      const createdCategoria = await createCategoria(payload);
-      Swal.fire('Éxito', 'Nueva categoría agregada correctamente.', 'success');
-      setCategorias((prev) => [...prev, createdCategoria]);
+      // Asumiendo que createCategoria acepta un objeto payload
+      const payload = {
+        nombre: newName.trim(),
+        descripcion: newDescription.trim() ? newDescription.trim() : 'Sin descripción',
+      };
+
+      const created = await createCategoria(payload);
+      setCategorias((prevCategorias) => [...prevCategorias, created]);
+
+      MySwal.fire({
+        icon: 'success',
+        title: 'Éxito',
+        text: 'Categoría creada correctamente.',
+        customClass: {
+          confirmButton: 'bg-green-600 text-white px-4 py-2 rounded-md',
+        },
+        buttonsStyling: false,
+      });
+
       setIsCreateModalOpen(false);
-      resetCreateForm();
+      setNewName('');
+      setNewDescription('');
     } catch (error) {
-      Swal.fire('Error', 'Ocurrió un error al crear la categoría.', 'error');
+      console.error('Error al crear categoría:', error);
+      if (error.response && error.response.data) {
+        const errors = error.response.data;
+        const errorMessages = Object.keys(errors).map(key => {
+          return Array.isArray(errors[key]) 
+            ? errors[key].map(msg => `${capitalize(key)}: ${msg}`).join('<br/>')
+            : `${capitalize(key)}: ${errors[key]}`;
+        }).join('<br/>');
+        MySwal.fire({
+          icon: 'error',
+          title: 'Error',
+          html: errorMessages,
+          customClass: {
+            confirmButton: 'bg-red-600 text-white px-4 py-2 rounded-md',
+          },
+          buttonsStyling: false,
+        });
+      } else {
+        MySwal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'Ocurrió un error al crear la categoría.',
+          customClass: {
+            confirmButton: 'bg-red-600 text-white px-4 py-2 rounded-md',
+          },
+          buttonsStyling: false,
+        });
+      }
     }
   };
 
   // Función para cancelar la creación
   const handleCancelCreate = () => {
     setIsCreateModalOpen(false);
-    resetCreateForm();
+    setNewName('');
+    setNewDescription('');
   };
 
   // Filtrar categorías basado en la búsqueda
-  const filterCategorias = useCallback(
-    (categorias, term) => {
-      if (!term) return categorias;
-      const termLower = term.toLowerCase();
-      return categorias.filter(
-        (c) =>
-          c.nombre.toLowerCase().includes(termLower) ||
-          c.descripcion.toLowerCase().includes(termLower)
-      );
-    },
-    []
+  const filteredCategorias = categorias.filter((categoria) =>
+    categoria.nombre.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -268,12 +441,19 @@ const CategoriaModal = ({ isOpen, onRequestClose }) => {
         isOpen={isOpen}
         onRequestClose={onRequestClose}
         contentLabel="Administrar Categorías"
-        className="bg-white rounded-lg shadow-xl w-full max-w-5xl mx-auto p-6 overflow-auto"
+        className="bg-white rounded-lg shadow-xl w-full max-w-5xl mx-auto p-6 overflow-auto relative"
         overlayClassName="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50"
       >
+        {/* Indicador de Carga durante la Eliminación */}
+        {isDeleting && (
+          <div className="absolute inset-0 bg-white bg-opacity-75 flex justify-center items-center z-50">
+            <div className="loader ease-linear rounded-full border-8 border-t-8 border-gray-200 h-16 w-16"></div>
+          </div>
+        )}
+
         {/* Encabezado del Modal */}
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-semibold text-gray-800">Administrar Categorías</h2>
+          <h2 className="text-2xl font-semibold text-blue-800">Administrar Categorías</h2>
           <button
             onClick={onRequestClose}
             className="text-gray-500 hover:text-gray-700"
@@ -298,69 +478,75 @@ const CategoriaModal = ({ isOpen, onRequestClose }) => {
         <div className="mb-4 flex items-center">
           <input
             type="text"
-            placeholder="Buscar categoría..."
+            placeholder="Buscar Categoría..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="p-3 border border-gray-300 rounded-md w-full shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
-          <FaSave className="ml-2 text-gray-500" />
+          <FaSearch className="ml-2 text-gray-500" />
         </div>
 
         {/* Tabla de Categorías */}
         {loading ? (
-          <p className="text-center text-lg text-gray-600">Cargando datos...</p>
+          <p className="text-center text-lg text-gray-600">Cargando categorías...</p>
         ) : (
           <div className="overflow-x-auto">
             <div className="overflow-y-auto max-h-96">
               <table className="min-w-full bg-white">
                 <thead>
                   <tr className="bg-blue-100 sticky top-0">
-                    <th className="py-3 px-6 text-left text-sm font-medium text-gray-700">Nombre</th>
-                    <th className="py-3 px-6 text-left text-sm font-medium text-gray-700">Descripción</th>
-                    <th className="py-3 px-6 text-center text-sm font-medium text-gray-700">Acciones</th>
+                    <th className="py-3 px-6 text-left text-sm font-medium text-blue-700">Nombre</th>
+                    <th className="py-3 px-6 text-left text-sm font-medium text-blue-700">Descripción</th>
+                    <th className="py-3 px-6 text-center text-sm font-medium text-blue-700">Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filterCategorias(categorias, searchTerm).length > 0 ? (
-                    filterCategorias(categorias, searchTerm).map((c) => (
-                      <tr key={c.id} className="hover:bg-gray-50">
+                  {filteredCategorias.length > 0 ? (
+                    filteredCategorias.map((categoria) => (
+                      <tr key={categoria.id} className="hover:bg-gray-50">
                         <td className="py-3 px-6 text-sm text-gray-700">
-                          {editingId === c.id ? (
+                          {editingId === categoria.id ? (
                             <input
                               type="text"
-                              value={editedNombre}
-                              onChange={(e) => setEditedNombre(e.target.value)}
-                              className="p-2 border border-gray-300 rounded-md w-full"
+                              value={editedName}
+                              onChange={(e) => setEditedName(e.target.value)}
+                              className={`p-2 border ${
+                                editedName.trim() === '' ? 'border-red-500' : 'border-gray-300'
+                              } rounded-md w-full`}
                               placeholder="Nombre de la categoría"
                             />
                           ) : (
-                            c.nombre
+                            categoria.nombre
                           )}
                         </td>
                         <td className="py-3 px-6 text-sm text-gray-700">
-                          {editingId === c.id ? (
+                          {editingId === categoria.id ? (
                             <textarea
-                              value={editedDescripcion}
-                              onChange={(e) => setEditedDescripcion(e.target.value)}
-                              className="p-2 border border-gray-300 rounded-md w-full"
-                              placeholder="Descripción de la categoría"
+                              value={editedDescription}
+                              onChange={(e) => setEditedDescription(e.target.value)}
+                              className="p-2 border border-gray-300 rounded-md w-full focus:ring-2 focus:ring-blue-500"
+                              placeholder="Descripción de la categoría (opcional)"
                             />
                           ) : (
-                            c.descripcion || 'Sin descripción'
+                            categoria.descripcion || 'Sin descripción'
                           )}
                         </td>
                         <td className="py-3 px-6 text-center space-x-4">
-                          {editingId === c.id ? (
+                          {editingId === categoria.id ? (
                             <>
                               <button
-                                onClick={handleSaveEdit}
+                                onClick={() => handleSave(categoria.id)}
                                 className="text-green-600 hover:text-green-800 transition-colors duration-200"
                                 title="Guardar cambios"
                               >
                                 <FaSave size={18} />
                               </button>
                               <button
-                                onClick={resetEditForm}
+                                onClick={() => {
+                                  setEditingId(null);
+                                  setEditedName('');
+                                  setEditedDescription('');
+                                }}
                                 className="text-red-600 hover:text-red-800 transition-colors duration-200"
                                 title="Cancelar edición"
                               >
@@ -370,14 +556,14 @@ const CategoriaModal = ({ isOpen, onRequestClose }) => {
                           ) : (
                             <>
                               <button
-                                onClick={() => handleEdit(c)}
+                                onClick={() => handleEdit(categoria)}
                                 className="text-blue-600 hover:text-blue-800 transition-colors duration-200"
                                 title="Editar Categoría"
                               >
                                 <FaEdit size={18} />
                               </button>
                               <button
-                                onClick={() => handleDelete(c.id)}
+                                onClick={() => handleDelete(categoria.id)}
                                 className="text-red-600 hover:text-red-800 transition-colors duration-200"
                                 title="Eliminar Categoría"
                               >
@@ -391,7 +577,7 @@ const CategoriaModal = ({ isOpen, onRequestClose }) => {
                   ) : (
                     <tr>
                       <td colSpan="3" className="text-center py-4 text-gray-500">
-                        No se encontraron registros.
+                        No se encontraron categorías
                       </td>
                     </tr>
                   )}
@@ -402,17 +588,31 @@ const CategoriaModal = ({ isOpen, onRequestClose }) => {
         )}
       </Modal>
 
+      {/* Indicador de Carga CSS */}
+      <style jsx>{`
+        .loader {
+          border-top-color: #3498db;
+          animation: spinner 1.5s linear infinite;
+        }
+
+        @keyframes spinner {
+          to {
+            transform: rotate(360deg);
+          }
+        }
+      `}</style>
+
       {/* Modal Secundario: Crear Categoría */}
       <Modal
         isOpen={isCreateModalOpen}
         onRequestClose={handleCancelCreate}
         contentLabel="Crear Nueva Categoría"
-        className="bg-white rounded-lg shadow-xl w-full max-w-md mx-auto p-6 overflow-auto"
+        className="bg-white rounded-lg shadow-xl w-full max-w-md mx-auto p-6 overflow-auto relative"
         overlayClassName="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50"
       >
         {/* Encabezado del Modal de Creación */}
         <div className="flex justify-between items-center mb-4">
-          <h3 className="text-xl font-semibold text-gray-800">Crear Nueva Categoría</h3>
+          <h3 className="text-xl font-semibold text-blue-800">Crear Nueva Categoría</h3>
           <button
             onClick={handleCancelCreate}
             className="text-gray-500 hover:text-gray-700"
@@ -424,21 +624,25 @@ const CategoriaModal = ({ isOpen, onRequestClose }) => {
 
         {/* Formulario de Creación */}
         <div className="mb-4">
-          <label className="block text-gray-700 mb-2">Nombre<span className="text-red-500">*</span>:</label>
+          <label className="block text-gray-700 mb-2">
+            Nombre<span className="text-red-500">*</span>:
+          </label>
           <input
             type="text"
-            value={newNombre}
-            onChange={(e) => setNewNombre(e.target.value)}
-            className={`w-full p-2 border ${createErrors.nombre ? 'border-red-500' : 'border-gray-300'} rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500`}
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            className={`w-full p-2 border ${
+              !newName.trim() ? 'border-red-500' : 'border-gray-300'
+            } rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500`}
             placeholder="Nombre de la categoría"
           />
         </div>
         <div className="mb-4">
           <label className="block text-gray-700 mb-2">Descripción:</label>
           <textarea
-            value={newDescripcion}
-            onChange={(e) => setNewDescripcion(e.target.value)}
-            className={`w-full p-2 border ${createErrors.descripcion ? 'border-red-500' : 'border-gray-300'} rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500`}
+            value={newDescription}
+            onChange={(e) => setNewDescription(e.target.value)}
+            className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="Descripción de la categoría (opcional)"
           />
         </div>
@@ -447,7 +651,7 @@ const CategoriaModal = ({ isOpen, onRequestClose }) => {
         <div className="flex justify-end space-x-4">
           <button
             onClick={handleCreate}
-            className="flex items-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors duration-200"
+            className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors duration-200"
           >
             <FaSave className="mr-2" />
             Guardar

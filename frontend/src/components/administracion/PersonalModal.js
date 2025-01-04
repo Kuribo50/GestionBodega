@@ -10,6 +10,8 @@ import {
   createPersonal,
   updatePersonal,
   deletePersonal,
+  fetchArticulos,
+  updateArticulos, // Asegúrate de tener esta función para actualizar artículos
 } from '../../services/api'; // Asegúrate de que estas funciones están correctamente definidas en tu API
 
 // Configurar SweetAlert2 con React Content
@@ -18,10 +20,13 @@ const MySwal = withReactContent(Swal);
 // Configurar el elemento raíz para accesibilidad
 Modal.setAppElement('#__next');
 
+// Función para capitalizar la primera letra (para mostrar errores)
+const capitalize = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+
 const PersonalModal = ({ isOpen, onRequestClose }) => {
   // Estados para el Modal Principal
   const [personal, setPersonal] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [articulos, setArticulos] = useState([]); // Para verificar el uso de personal
   const [searchTerm, setSearchTerm] = useState('');
   const [editingId, setEditingId] = useState(null);
   const [editedNombre, setEditedNombre] = useState('');
@@ -31,6 +36,9 @@ const PersonalModal = ({ isOpen, onRequestClose }) => {
     correo_institucional: false,
   });
 
+  // Nuevo estado para manejar el indicador de carga durante operaciones críticas
+  const [isProcessing, setIsProcessing] = useState(false);
+
   // Estados para el Modal de Creación
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [newCorreo, setNewCorreo] = useState('');
@@ -38,7 +46,7 @@ const PersonalModal = ({ isOpen, onRequestClose }) => {
     correo_institucional: false,
   });
 
-  // Cargar los datos al abrir el modal principal
+  // Efecto para cargar personal y artículos al abrir el modal principal
   useEffect(() => {
     if (isOpen) {
       loadData();
@@ -50,14 +58,27 @@ const PersonalModal = ({ isOpen, onRequestClose }) => {
 
   // Función para cargar datos desde la API
   const loadData = async () => {
-    setLoading(true);
+    setIsProcessing(true);
     try {
-      const personalData = await fetchPersonal();
+      const [personalData, artData] = await Promise.all([
+        fetchPersonal(),
+        fetchArticulos(),
+      ]);
       setPersonal(personalData.results || personalData);
+      setArticulos(artData.results || artData);
     } catch (error) {
-      Swal.fire('Error', 'Error al cargar los datos de personal.', 'error');
+      console.error('Error cargando datos:', error);
+      MySwal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'No se pudieron cargar los datos de personal o artículos.',
+        customClass: {
+          confirmButton: 'bg-red-600 text-white px-4 py-2 rounded-md',
+        },
+        buttonsStyling: false,
+      });
     } finally {
-      setLoading(false);
+      setIsProcessing(false);
     }
   };
 
@@ -100,7 +121,15 @@ const PersonalModal = ({ isOpen, onRequestClose }) => {
 
     if (Object.values(newErrors).some((err) => err)) {
       setErrors(newErrors);
-      Swal.fire('Error', 'Por favor, complete el correo institucional.', 'error');
+      MySwal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Por favor, complete el correo institucional.',
+        customClass: {
+          confirmButton: 'bg-red-600 text-white px-4 py-2 rounded-md',
+        },
+        buttonsStyling: false,
+      });
       return;
     }
 
@@ -112,7 +141,15 @@ const PersonalModal = ({ isOpen, onRequestClose }) => {
     );
 
     if (correoDuplicado) {
-      Swal.fire('Error', 'El correo institucional ya está registrado.', 'error');
+      MySwal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'El correo institucional ya está registrado.',
+        customClass: {
+          confirmButton: 'bg-red-600 text-white px-4 py-2 rounded-md',
+        },
+        buttonsStyling: false,
+      });
       setErrors({ ...newErrors, correo_institucional: true });
       return;
     }
@@ -126,14 +163,60 @@ const PersonalModal = ({ isOpen, onRequestClose }) => {
 
     // Guardar los datos
     try {
+      setIsProcessing(true);
       const updatedPersonal = await updatePersonal(editingId, payload);
-      Swal.fire('Éxito', 'El personal se actualizó correctamente.', 'success');
       setPersonal((prev) =>
         prev.map((p) => (p.id === editingId ? { ...p, ...updatedPersonal } : p))
       );
+
+      MySwal.fire({
+        icon: 'success',
+        title: 'Éxito',
+        text: 'El personal se actualizó correctamente.',
+        customClass: {
+          confirmButton: 'bg-green-600 text-white px-4 py-2 rounded-md',
+        },
+        buttonsStyling: false,
+      });
+
       resetEditForm();
     } catch (error) {
-      Swal.fire('Error', 'Ocurrió un error al actualizar el personal.', 'error');
+      console.error('Error al actualizar el personal:', error);
+      if (error.response && error.response.data) {
+        const errors = error.response.data;
+        let errorMessages = '';
+        Object.keys(errors).forEach((key) => {
+          if (Array.isArray(errors[key])) {
+            errors[key].forEach((msg) => {
+              errorMessages += `Error en ${capitalize(key)}: ${msg}<br/>`;
+            });
+          } else {
+            errorMessages += `Error en ${capitalize(key)}: ${errors[key]}<br/>`;
+          }
+        });
+
+        MySwal.fire({
+          icon: 'error',
+          title: 'Error',
+          html: errorMessages,
+          customClass: {
+            confirmButton: 'bg-red-600 text-white px-4 py-2 rounded-md',
+          },
+          buttonsStyling: false,
+        });
+      } else {
+        MySwal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'Ocurrió un error al actualizar el personal.',
+          customClass: {
+            confirmButton: 'bg-red-600 text-white px-4 py-2 rounded-md',
+          },
+          buttonsStyling: false,
+        });
+      }
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -143,26 +226,62 @@ const PersonalModal = ({ isOpen, onRequestClose }) => {
       // Verificar si el personal tiene préstamos activos
       const hasActiveLoans = await checkActiveLoans(id); // Implementa esta función según tu lógica de negocio
       if (hasActiveLoans) {
-        Swal.fire('Error', 'Este personal tiene préstamos activos y no puede ser eliminado.', 'error');
+        MySwal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'Este personal tiene préstamos activos y no puede ser eliminado.',
+          customClass: {
+            confirmButton: 'bg-red-600 text-white px-4 py-2 rounded-md',
+          },
+          buttonsStyling: false,
+        });
         return;
       }
 
-      const confirm = await Swal.fire({
+      const result = await MySwal.fire({
         title: '¿Estás seguro?',
         text: 'Esta acción eliminará el registro de forma permanente.',
         icon: 'warning',
         showCancelButton: true,
         confirmButtonText: 'Sí, eliminar',
         cancelButtonText: 'Cancelar',
+        reverseButtons: true,
+        focusCancel: true,
+        customClass: {
+          confirmButton: 'bg-green-600 text-white px-4 py-2 rounded-md',
+          cancelButton: 'bg-red-600 text-white px-4 py-2 rounded-md',
+        },
+        buttonsStyling: false,
       });
 
-      if (confirm.isConfirmed) {
+      if (result.isConfirmed) {
+        setIsProcessing(true);
         await deletePersonal(id);
-        Swal.fire('Éxito', 'El personal fue eliminado correctamente.', 'success');
         setPersonal((prev) => prev.filter((p) => p.id !== id));
+
+        MySwal.fire({
+          icon: 'success',
+          title: 'Éxito',
+          text: 'El personal fue eliminado correctamente.',
+          customClass: {
+            confirmButton: 'bg-green-600 text-white px-4 py-2 rounded-md',
+          },
+          buttonsStyling: false,
+        });
       }
     } catch (error) {
-      Swal.fire('Error', 'Ocurrió un error al eliminar el personal.', 'error');
+      console.error('Error al eliminar el personal:', error);
+      MySwal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Ocurrió un error al eliminar el personal.',
+        customClass: {
+          confirmButton: 'bg-red-600 text-white px-4 py-2 rounded-md',
+        },
+        buttonsStyling: false,
+      });
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -198,7 +317,15 @@ const PersonalModal = ({ isOpen, onRequestClose }) => {
 
     if (Object.values(newErrors).some((err) => err)) {
       setCreateErrors(newErrors);
-      Swal.fire('Error', 'Por favor, complete el correo institucional.', 'error');
+      MySwal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Por favor, complete el correo institucional.',
+        customClass: {
+          confirmButton: 'bg-red-600 text-white px-4 py-2 rounded-md',
+        },
+        buttonsStyling: false,
+      });
       return;
     }
 
@@ -208,7 +335,15 @@ const PersonalModal = ({ isOpen, onRequestClose }) => {
     );
 
     if (correoDuplicado) {
-      Swal.fire('Error', 'El correo institucional ya está registrado.', 'error');
+      MySwal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'El correo institucional ya está registrado.',
+        customClass: {
+          confirmButton: 'bg-red-600 text-white px-4 py-2 rounded-md',
+        },
+        buttonsStyling: false,
+      });
       setCreateErrors({ ...newErrors, correo_institucional: true });
       return;
     }
@@ -222,13 +357,59 @@ const PersonalModal = ({ isOpen, onRequestClose }) => {
 
     // Crear el nuevo personal
     try {
+      setIsProcessing(true);
       const createdPersonal = await createPersonal(payload);
-      Swal.fire('Éxito', 'Nuevo personal agregado correctamente.', 'success');
       setPersonal((prev) => [...prev, createdPersonal]);
+
+      MySwal.fire({
+        icon: 'success',
+        title: 'Éxito',
+        text: 'Nuevo personal agregado correctamente.',
+        customClass: {
+          confirmButton: 'bg-green-600 text-white px-4 py-2 rounded-md',
+        },
+        buttonsStyling: false,
+      });
+
       setIsCreateModalOpen(false);
       resetCreateForm();
     } catch (error) {
-      Swal.fire('Error', 'Ocurrió un error al crear el personal.', 'error');
+      console.error('Error al crear personal:', error);
+      if (error.response && error.response.data) {
+        const errors = error.response.data;
+        let errorMessages = '';
+        Object.keys(errors).forEach((key) => {
+          if (Array.isArray(errors[key])) {
+            errors[key].forEach((msg) => {
+              errorMessages += `Error en ${capitalize(key)}: ${msg}<br/>`;
+            });
+          } else {
+            errorMessages += `Error en ${capitalize(key)}: ${errors[key]}<br/>`;
+          }
+        });
+
+        MySwal.fire({
+          icon: 'error',
+          title: 'Error',
+          html: errorMessages,
+          customClass: {
+            confirmButton: 'bg-red-600 text-white px-4 py-2 rounded-md',
+          },
+          buttonsStyling: false,
+        });
+      } else {
+        MySwal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'Ocurrió un error al crear el personal.',
+          customClass: {
+            confirmButton: 'bg-red-600 text-white px-4 py-2 rounded-md',
+          },
+          buttonsStyling: false,
+        });
+      }
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -260,12 +441,19 @@ const PersonalModal = ({ isOpen, onRequestClose }) => {
         isOpen={isOpen}
         onRequestClose={onRequestClose}
         contentLabel="Administrar Personal"
-        className="bg-white rounded-lg shadow-xl w-full max-w-5xl mx-auto p-6 overflow-auto"
+        className="bg-white rounded-lg shadow-xl w-full max-w-5xl mx-auto p-6 overflow-auto relative"
         overlayClassName="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50"
       >
+        {/* Indicador de Carga durante Operaciones Críticas */}
+        {isProcessing && (
+          <div className="absolute inset-0 bg-white bg-opacity-75 flex justify-center items-center z-50">
+            <div className="loader ease-linear rounded-full border-8 border-t-8 border-gray-200 h-16 w-16"></div>
+          </div>
+        )}
+
         {/* Encabezado del Modal */}
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-semibold text-gray-800">Administrar Personal</h2>
+          <h2 className="text-2xl font-semibold text-blue-800">Administrar Personal</h2>
           <button
             onClick={onRequestClose}
             className="text-gray-500 hover:text-gray-700"
@@ -295,22 +483,22 @@ const PersonalModal = ({ isOpen, onRequestClose }) => {
             onChange={(e) => setSearchTerm(e.target.value)}
             className="p-3 border border-gray-300 rounded-md w-full shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
-          <FaSave className="ml-2 text-gray-500" />
+          <FaTimes className="ml-2 text-gray-500" />
         </div>
 
         {/* Tabla de Personal */}
-        {loading ? (
-          <p className="text-center text-lg text-gray-600">Cargando datos...</p>
+        {isProcessing ? (
+          <p className="text-center text-lg text-gray-600">Procesando...</p>
         ) : (
           <div className="overflow-x-auto">
             <div className="overflow-y-auto max-h-96">
               <table className="min-w-full bg-white">
                 <thead>
                   <tr className="bg-blue-100 sticky top-0">
-                    <th className="py-3 px-6 text-left text-sm font-medium text-gray-700">Nombre</th>
-                    <th className="py-3 px-6 text-left text-sm font-medium text-gray-700">Correo Institucional</th>
-                    <th className="py-3 px-6 text-left text-sm font-medium text-gray-700">Sección</th>
-                    <th className="py-3 px-6 text-center text-sm font-medium text-gray-700">Acciones</th>
+                    <th className="py-3 px-6 text-left text-sm font-medium text-blue-700">Nombre</th>
+                    <th className="py-3 px-6 text-left text-sm font-medium text-blue-700">Correo Institucional</th>
+                    <th className="py-3 px-6 text-left text-sm font-medium text-blue-700">Sección</th>
+                    <th className="py-3 px-6 text-center text-sm font-medium text-blue-700">Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -323,7 +511,9 @@ const PersonalModal = ({ isOpen, onRequestClose }) => {
                               type="text"
                               value={editedNombre}
                               onChange={(e) => setEditedNombre(e.target.value)}
-                              className="p-2 border border-gray-300 rounded-md w-full"
+                              className={`p-2 border ${
+                                editedNombre.trim() === '' ? 'border-red-500' : 'border-gray-300'
+                              } rounded-md w-full`}
                               placeholder="Nombre del personal"
                             />
                           ) : (
@@ -336,7 +526,9 @@ const PersonalModal = ({ isOpen, onRequestClose }) => {
                               type="email"
                               value={editedCorreo}
                               onChange={(e) => setEditedCorreo(e.target.value)}
-                              className="p-2 border border-gray-300 rounded-md w-full"
+                              className={`p-2 border ${
+                                errors.correo_institucional ? 'border-red-500' : 'border-gray-300'
+                              } rounded-md w-full`}
                               placeholder="Correo institucional"
                             />
                           ) : (
@@ -409,17 +601,31 @@ const PersonalModal = ({ isOpen, onRequestClose }) => {
         )}
       </Modal>
 
+      {/* Indicador de Carga CSS */}
+      <style jsx>{`
+        .loader {
+          border-top-color: #3498db;
+          animation: spinner 1.5s linear infinite;
+        }
+
+        @keyframes spinner {
+          to {
+            transform: rotate(360deg);
+          }
+        }
+      `}</style>
+
       {/* Modal Secundario: Crear Personal */}
       <Modal
         isOpen={isCreateModalOpen}
         onRequestClose={handleCancelCreate}
         contentLabel="Crear Nuevo Personal"
-        className="bg-white rounded-lg shadow-xl w-full max-w-md mx-auto p-6 overflow-auto"
+        className="bg-white rounded-lg shadow-xl w-full max-w-md mx-auto p-6 overflow-auto relative"
         overlayClassName="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50"
       >
         {/* Encabezado del Modal de Creación */}
         <div className="flex justify-between items-center mb-4">
-          <h3 className="text-xl font-semibold text-gray-800">Crear Nuevo Personal</h3>
+          <h3 className="text-xl font-semibold text-blue-800">Crear Nuevo Personal</h3>
           <button
             onClick={handleCancelCreate}
             className="text-gray-500 hover:text-gray-700"
@@ -431,12 +637,16 @@ const PersonalModal = ({ isOpen, onRequestClose }) => {
 
         {/* Formulario de Creación */}
         <div className="mb-4">
-          <label className="block text-gray-700 mb-2">Correo Institucional<span className="text-red-500">*</span>:</label>
+          <label className="block text-gray-700 mb-2">
+            Correo Institucional<span className="text-red-500">*</span>:
+          </label>
           <input
             type="email"
             value={newCorreo}
             onChange={(e) => setNewCorreo(e.target.value)}
-            className={`w-full p-2 border ${createErrors.correo_institucional ? 'border-red-500' : 'border-gray-300'} rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500`}
+            className={`w-full p-2 border ${
+              createErrors.correo_institucional ? 'border-red-500' : 'border-gray-300'
+            } rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500`}
             placeholder="Correo institucional"
           />
         </div>

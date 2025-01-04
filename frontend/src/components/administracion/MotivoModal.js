@@ -1,9 +1,8 @@
 // src/components/administracion/MotivoModal.js
 
-import React, { useState, useEffect,useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Modal from 'react-modal';
 import { FaEdit, FaSave, FaTimes, FaTrash, FaSearch, FaPlus } from 'react-icons/fa';
-import { toast } from 'react-toastify';
 import Swal from 'sweetalert2';
 import withReactContent from 'sweetalert2-react-content';
 import { 
@@ -11,7 +10,8 @@ import {
   createMotivo, 
   updateMotivo, 
   deleteMotivo, 
-  fetchArticulos 
+  fetchArticulos,
+  updateArticulos // Asegúrate de tener esta función para actualizar artículos
 } from '@/services/api'; // Asegúrate de que las rutas sean correctas
 
 // Configurar SweetAlert2 con React Content
@@ -19,6 +19,9 @@ const MySwal = withReactContent(Swal);
 
 // Configurar el elemento raíz para accesibilidad
 Modal.setAppElement('#__next');
+
+// Función para capitalizar la primera letra (para mostrar errores)
+const capitalize = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
 const MotivoModal = ({ isOpen, onRequestClose }) => {
   // Estados para el Modal Principal
@@ -31,6 +34,9 @@ const MotivoModal = ({ isOpen, onRequestClose }) => {
   const [loading, setLoading] = useState(false);
   const [deletingId, setDeletingId] = useState(null); // ID del motivo a eliminar
   const [associatedArticulos, setAssociatedArticulos] = useState([]); // Artículos asociados
+
+  // Nuevo estado para manejar el indicador de carga durante la eliminación
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Estados para el Modal de Creación
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -58,7 +64,15 @@ const MotivoModal = ({ isOpen, onRequestClose }) => {
       setArticulos(artData.results || artData);
     } catch (error) {
       console.error('Error cargando datos:', error);
-      toast.error('No se pudieron cargar los motivos o artículos.', { position: 'top-center' });
+      MySwal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'No se pudieron cargar los motivos o artículos.',
+        customClass: {
+          confirmButton: 'bg-red-600 text-white px-4 py-2 rounded-md',
+        },
+        buttonsStyling: false,
+      });
     } finally {
       setLoading(false);
     }
@@ -86,7 +100,15 @@ const MotivoModal = ({ isOpen, onRequestClose }) => {
   // Función para guardar los cambios de un motivo
   const handleSave = async (id) => {
     if (!editedName.trim()) {
-      toast.error('El nombre no puede estar vacío.', { position: 'top-center' });
+      MySwal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'El nombre no puede estar vacío.',
+        customClass: {
+          confirmButton: 'bg-red-600 text-white px-4 py-2 rounded-md',
+        },
+        buttonsStyling: false,
+      });
       return;
     }
 
@@ -96,7 +118,15 @@ const MotivoModal = ({ isOpen, onRequestClose }) => {
     );
 
     if (nameExists) {
-      toast.error('Ya existe un motivo con este nombre.', { position: 'top-center' });
+      MySwal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Ya existe un motivo con este nombre.',
+        customClass: {
+          confirmButton: 'bg-red-600 text-white px-4 py-2 rounded-md',
+        },
+        buttonsStyling: false,
+      });
       return;
     }
 
@@ -109,31 +139,64 @@ const MotivoModal = ({ isOpen, onRequestClose }) => {
       console.log('Actualizando Motivo con datos:', payload); // Loguear datos enviados
 
       const updatedMotivo = await updateMotivo(id, payload);
-      toast.success('Motivo actualizado exitosamente.', { position: 'top-center' });
-      setMotivos(
-        motivos.map((motivo) =>
+      setMotivos((prevMotivos) =>
+        prevMotivos.map((motivo) =>
           motivo.id === id ? updatedMotivo : motivo
         )
       );
+
+      MySwal.fire({
+        icon: 'success',
+        title: 'Éxito',
+        text: 'Motivo actualizado correctamente.',
+        customClass: {
+          confirmButton: 'bg-green-600 text-white px-4 py-2 rounded-md',
+        },
+        buttonsStyling: false,
+      });
+
       setEditingId(null);
       setEditedName('');
       setEditedDescription('');
     } catch (error) {
       console.error('Error al actualizar el motivo:', error);
-      if (error.response) {
-        console.log('Detalles del error:', error.response.data); // Loguear detalles del error
+      if (error.response && error.response.data) {
         const errors = error.response.data;
         Object.keys(errors).forEach((key) => {
           if (Array.isArray(errors[key])) {
             errors[key].forEach((msg) => {
-              toast.error(`Error en ${capitalize(key)}: ${msg}`, { position: 'top-center' });
+              MySwal.fire({
+                icon: 'error',
+                title: 'Error',
+                html: `Error en ${capitalize(key)}: ${msg}`,
+                customClass: {
+                  confirmButton: 'bg-red-600 text-white px-4 py-2 rounded-md',
+                },
+                buttonsStyling: false,
+              });
             });
           } else {
-            toast.error(`Error en ${capitalize(key)}: ${errors[key]}`, { position: 'top-center' });
+            MySwal.fire({
+              icon: 'error',
+              title: 'Error',
+              html: `Error en ${capitalize(key)}: ${errors[key]}`,
+              customClass: {
+                confirmButton: 'bg-red-600 text-white px-4 py-2 rounded-md',
+              },
+              buttonsStyling: false,
+            });
           }
         });
       } else {
-        toast.error('Error al actualizar el motivo.', { position: 'top-center' });
+        MySwal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'Ocurrió un error al actualizar el motivo.',
+          customClass: {
+            confirmButton: 'bg-red-600 text-white px-4 py-2 rounded-md',
+          },
+          buttonsStyling: false,
+        });
       }
     }
   };
@@ -155,102 +218,181 @@ const MotivoModal = ({ isOpen, onRequestClose }) => {
         text: "¿Deseas eliminar este motivo?",
         icon: 'warning',
         showCancelButton: true,
-        confirmButtonColor: '#3085d6',
-        cancelButtonColor: '#d33',
         confirmButtonText: 'Sí, eliminar',
         cancelButtonText: 'Cancelar',
+        reverseButtons: true,
+        focusCancel: true,
+        customClass: {
+          confirmButton: 'bg-green-600 text-white px-4 py-2 rounded-md',
+          cancelButton: 'bg-red-600 text-white px-4 py-2 rounded-md',
+        },
+        buttonsStyling: false,
       });
 
       if (result.isConfirmed) {
+        // Establecer el estado de carga
+        setIsDeleting(true);
+
         await deleteMotivo(id);
-        toast.success('Motivo eliminado exitosamente.', { position: 'top-center' });
-        setMotivos(
-          motivos.filter((motivo) => motivo.id !== id)
-        );
+        MySwal.fire({
+          icon: 'success',
+          title: 'Eliminado',
+          text: 'Motivo eliminado exitosamente.',
+          customClass: {
+            confirmButton: 'bg-green-600 text-white px-4 py-2 rounded-md',
+          },
+          buttonsStyling: false,
+        });
+        setMotivos((prevMotivos) => prevMotivos.filter((motivo) => motivo.id !== id));
       }
     } catch (error) {
       console.error('Error al eliminar el motivo:', error);
-      if (error.response) {
-        console.log('Detalles del error:', error.response.data); // Loguear detalles del error
+      if (error.response && error.response.data) {
         const errors = error.response.data;
         Object.keys(errors).forEach((key) => {
           if (Array.isArray(errors[key])) {
             errors[key].forEach((msg) => {
-              toast.error(`Error en ${capitalize(key)}: ${msg}`, { position: 'top-center' });
+              MySwal.fire({
+                icon: 'error',
+                title: 'Error',
+                html: `Error en ${capitalize(key)}: ${msg}`,
+                customClass: {
+                  confirmButton: 'bg-red-600 text-white px-4 py-2 rounded-md',
+                },
+                buttonsStyling: false,
+              });
             });
           } else {
-            toast.error(`Error en ${capitalize(key)}: ${errors[key]}`, { position: 'top-center' });
+            MySwal.fire({
+              icon: 'error',
+              title: 'Error',
+              html: `Error en ${capitalize(key)}: ${errors[key]}`,
+              customClass: {
+                confirmButton: 'bg-red-600 text-white px-4 py-2 rounded-md',
+              },
+              buttonsStyling: false,
+            });
           }
         });
       } else {
-        toast.error('Error al eliminar el motivo.', { position: 'top-center' });
+        MySwal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'Ocurrió un error al eliminar el motivo.',
+          customClass: {
+            confirmButton: 'bg-red-600 text-white px-4 py-2 rounded-md',
+          },
+          buttonsStyling: false,
+        });
       }
+    } finally {
+      // Finalizar el estado de carga
+      setIsDeleting(false);
     }
   };
 
   // Función para confirmar eliminación cuando el motivo está asociado a artículos
-  const confirmDeleteWithArticulos = async () => {
+  const confirmDeleteWithArticulos = useCallback(async () => {
     if (!deletingId) return;
 
-    // Formatear la lista de artículos relacionados
-    const articuloList = associatedArticulos.map((articulo) => {
+    const asociadosList = associatedArticulos;
+
+    // Construir la lista HTML de artículos afectados
+    const articuloListHTML = asociadosList.map((articulo) => {
       return `• Nombre: ${articulo.nombre}, Stock: ${articulo.stock_actual}, Código Minvu: ${articulo.codigo_minvu || 'N/A'}, Código Interno: ${articulo.codigo_interno || 'N/A'}, Nº Serie: ${articulo.numero_serie || 'N/A'}`;
     }).join('<br/>');
 
     const result = await MySwal.fire({
       title: '¿Estás seguro?',
       html: `
-        <p>El motivo seleccionado está asociado a ${associatedArticulos.length} artículo(s):</p>
+        <p>El motivo seleccionado está asociado a <strong>${asociadosList.length}</strong> artículo(s):</p>
         <div style="max-height: 200px; overflow-y: auto; text-align: left;">
-          ${articuloList}
+          ${articuloListHTML}
         </div>
         <p>¿Deseas eliminarlo? Los artículos asociados tendrán su motivo establecido en 'Sin motivo'.</p>
       `,
       icon: 'warning',
       showCancelButton: true,
-      confirmButtonColor: '#3085d6',
-      cancelButtonColor: '#d33',
       confirmButtonText: 'Sí, eliminar',
       cancelButtonText: 'Cancelar',
+      reverseButtons: true,
+      focusCancel: true,
       customClass: {
-        popup: 'swal2-overflow' // Clase para manejar contenido largo
+        confirmButton: 'bg-green-600 text-white px-4 py-2 rounded-md',
+        cancelButton: 'bg-red-600 text-white px-4 py-2 rounded-md',
       },
+      buttonsStyling: false,
     });
 
     if (result.isConfirmed) {
       try {
+        // Establecer el estado de carga
+        setIsDeleting(true);
+
         // Eliminar el motivo
         await deleteMotivo(deletingId);
 
-        // Actualizar los artículos asociados para establecer 'Sin motivo' (asumiendo que 'motivo' puede ser null)
-        const actualizarArticulosPromises = associatedArticulos.map((articulo) => {
-          return updateArticulo(articulo.id, { motivo: null });
+        // Actualizar los artículos asociados para establecer 'Sin motivo'
+        const actualizarArticulosPromises = asociadosList.map((articulo) => {
+          return updateArticulos(articulo.id, { motivo: null });
         });
 
         await Promise.all(actualizarArticulosPromises);
 
-        toast.success('Motivo eliminado exitosamente y artículos actualizados.', { position: 'top-center' });
-        setMotivos(
-          motivos.filter((motivo) => motivo.id !== deletingId)
-        );
+        MySwal.fire({
+          icon: 'success',
+          title: 'Eliminado',
+          text: 'Motivo eliminado y artículos asociados actualizados correctamente.',
+          customClass: {
+            confirmButton: 'bg-green-600 text-white px-4 py-2 rounded-md',
+          },
+          buttonsStyling: false,
+        });
+
+        setMotivos((prevMotivos) => prevMotivos.filter((motivo) => motivo.id !== deletingId));
       } catch (error) {
         console.error('Error al eliminar motivo con artículos asociados:', error);
         if (error.response) {
-          console.log('Detalles del error:', error.response.data); // Loguear detalles del error
           const errors = error.response.data;
           Object.keys(errors).forEach((key) => {
             if (Array.isArray(errors[key])) {
               errors[key].forEach((msg) => {
-                toast.error(`Error en ${capitalize(key)}: ${msg}`, { position: 'top-center' });
+                MySwal.fire({
+                  icon: 'error',
+                  title: 'Error',
+                  html: `Error en ${capitalize(key)}: ${msg}`,
+                  customClass: {
+                    confirmButton: 'bg-red-600 text-white px-4 py-2 rounded-md',
+                  },
+                  buttonsStyling: false,
+                });
               });
             } else {
-              toast.error(`Error en ${capitalize(key)}: ${errors[key]}`, { position: 'top-center' });
+              MySwal.fire({
+                icon: 'error',
+                title: 'Error',
+                html: `Error en ${capitalize(key)}: ${errors[key]}`,
+                customClass: {
+                  confirmButton: 'bg-red-600 text-white px-4 py-2 rounded-md',
+                },
+                buttonsStyling: false,
+              });
             }
           });
         } else {
-          toast.error('Error al eliminar el motivo.', { position: 'top-center' });
+          MySwal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Ocurrió un error al eliminar el motivo y actualizar los artículos asociados.',
+            customClass: {
+              confirmButton: 'bg-red-600 text-white px-4 py-2 rounded-md',
+            },
+            buttonsStyling: false,
+          });
         }
       } finally {
+        // Finalizar el estado de carga
+        setIsDeleting(false);
         setDeletingId(null);
         setAssociatedArticulos([]);
       }
@@ -259,30 +401,27 @@ const MotivoModal = ({ isOpen, onRequestClose }) => {
       setDeletingId(null);
       setAssociatedArticulos([]);
     }
-  };
-
-  // Función auxiliar para actualizar artículos asociados
-  const updateMotivoArticulo = async (articuloId, data) => {
-    try {
-      await updateArticulo(articuloId, data);
-    } catch (error) {
-      console.error(`Error al actualizar el artículo ID ${articuloId}:`, error);
-      throw error;
-    }
-  };
+  }, [deletingId, associatedArticulos]); // Eliminamos 'motivos', 'deleteMotivo' y 'updateArticulos' de las dependencias
 
   // Efecto para manejar la confirmación de eliminación cuando hay artículos asociados
   useEffect(() => {
     if (deletingId && associatedArticulos.length > 0) {
       confirmDeleteWithArticulos();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [deletingId]);
+  }, [deletingId, associatedArticulos.length, confirmDeleteWithArticulos]);
 
   // Función para manejar la creación de un nuevo motivo
   const handleCreate = async () => {
     if (!newName.trim()) {
-      toast.error('El nombre del motivo no puede estar vacío.', { position: 'top-center' });
+      MySwal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'El nombre del motivo no puede estar vacío.',
+        customClass: {
+          confirmButton: 'bg-red-600 text-white px-4 py-2 rounded-md',
+        },
+        buttonsStyling: false,
+      });
       return;
     }
 
@@ -292,7 +431,15 @@ const MotivoModal = ({ isOpen, onRequestClose }) => {
     );
 
     if (nameExists) {
-      toast.error('Ya existe un motivo con este nombre.', { position: 'top-center' });
+      MySwal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Ya existe un motivo con este nombre.',
+        customClass: {
+          confirmButton: 'bg-red-600 text-white px-4 py-2 rounded-md',
+        },
+        buttonsStyling: false,
+      });
       return;
     }
 
@@ -305,28 +452,61 @@ const MotivoModal = ({ isOpen, onRequestClose }) => {
 
     try {
       const createdMotivo = await createMotivo(payload);
-      toast.success('Motivo creado exitosamente.', { position: 'top-center' });
-      setMotivos([...motivos, createdMotivo]);
+      setMotivos((prevMotivos) => [...prevMotivos, createdMotivo]);
+
+      MySwal.fire({
+        icon: 'success',
+        title: 'Éxito',
+        text: 'Motivo creado exitosamente.',
+        customClass: {
+          confirmButton: 'bg-green-600 text-white px-4 py-2 rounded-md',
+        },
+        buttonsStyling: false,
+      });
+
       // Resetear campos de creación
       setIsCreateModalOpen(false);
       setNewName('');
       setNewDescription('');
     } catch (error) {
       console.error('Error al crear motivo:', error);
-      if (error.response) {
-        console.log('Detalles del error:', error.response.data); // Loguear detalles del error
+      if (error.response && error.response.data) {
         const errors = error.response.data;
         Object.keys(errors).forEach((key) => {
           if (Array.isArray(errors[key])) {
             errors[key].forEach((msg) => {
-              toast.error(`Error en ${capitalize(key)}: ${msg}`, { position: 'top-center' });
+              MySwal.fire({
+                icon: 'error',
+                title: 'Error',
+                html: `Error en ${capitalize(key)}: ${msg}`,
+                customClass: {
+                  confirmButton: 'bg-red-600 text-white px-4 py-2 rounded-md',
+                },
+                buttonsStyling: false,
+              });
             });
           } else {
-            toast.error(`Error en ${capitalize(key)}: ${errors[key]}`, { position: 'top-center' });
+            MySwal.fire({
+              icon: 'error',
+              title: 'Error',
+              html: `Error en ${capitalize(key)}: ${errors[key]}`,
+              customClass: {
+                confirmButton: 'bg-red-600 text-white px-4 py-2 rounded-md',
+              },
+              buttonsStyling: false,
+            });
           }
         });
       } else {
-        toast.error('Error al crear el motivo.', { position: 'top-center' });
+        MySwal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'Ocurrió un error al crear el motivo.',
+          customClass: {
+            confirmButton: 'bg-red-600 text-white px-4 py-2 rounded-md',
+          },
+          buttonsStyling: false,
+        });
       }
     }
   };
@@ -350,12 +530,19 @@ const MotivoModal = ({ isOpen, onRequestClose }) => {
         isOpen={isOpen}
         onRequestClose={onRequestClose}
         contentLabel="Administrar Motivos"
-        className="bg-white rounded-lg shadow-xl w-full max-w-5xl mx-auto my-8 p-6 outline-none"
+        className="bg-white rounded-lg shadow-xl w-full max-w-5xl mx-auto p-6 overflow-auto relative"
         overlayClassName="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50"
       >
+        {/* Indicador de Carga durante la Eliminación */}
+        {isDeleting && (
+          <div className="absolute inset-0 bg-white bg-opacity-75 flex justify-center items-center z-50">
+            <div className="loader ease-linear rounded-full border-8 border-t-8 border-gray-200 h-16 w-16"></div>
+          </div>
+        )}
+
         {/* Encabezado del Modal */}
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-semibold text-gray-800">Administrar Motivos</h2>
+          <h2 className="text-2xl font-semibold text-blue-800">Administrar Motivos</h2>
           <button
             onClick={onRequestClose}
             className="text-gray-500 hover:text-gray-700"
@@ -396,10 +583,10 @@ const MotivoModal = ({ isOpen, onRequestClose }) => {
             <div className="overflow-y-auto max-h-96">
               <table className="min-w-full bg-white">
                 <thead>
-                  <tr className="bg-blue-100 sticky top-0"> {/* Sticky header */}
-                    <th className="py-3 px-6 text-left text-sm font-medium text-gray-700">Nombre</th>
-                    <th className="py-3 px-6 text-left text-sm font-medium text-gray-700">Descripción</th>
-                    <th className="py-3 px-6 text-center text-sm font-medium text-gray-700">Acciones</th>
+                  <tr className="bg-blue-100 sticky top-0">
+                    <th className="py-3 px-6 text-left text-sm font-medium text-blue-700">Nombre</th>
+                    <th className="py-3 px-6 text-left text-sm font-medium text-blue-700">Descripción</th>
+                    <th className="py-3 px-6 text-center text-sm font-medium text-blue-700">Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -412,7 +599,9 @@ const MotivoModal = ({ isOpen, onRequestClose }) => {
                               type="text"
                               value={editedName}
                               onChange={(e) => setEditedName(e.target.value)}
-                              className="p-2 border border-gray-300 rounded-md w-full"
+                              className={`p-2 border ${
+                                editedName.trim() === '' ? 'border-red-500' : 'border-gray-300'
+                              } rounded-md w-full`}
                               placeholder="Nombre del motivo"
                             />
                           ) : (
@@ -424,7 +613,7 @@ const MotivoModal = ({ isOpen, onRequestClose }) => {
                             <textarea
                               value={editedDescription}
                               onChange={(e) => setEditedDescription(e.target.value)}
-                              className="p-2 border border-gray-300 rounded-md w-full"
+                              className="p-2 border border-gray-300 rounded-md w-full focus:ring-2 focus:ring-blue-500"
                               placeholder="Descripción del motivo (opcional)"
                             />
                           ) : (
@@ -486,19 +675,33 @@ const MotivoModal = ({ isOpen, onRequestClose }) => {
         )}
       </Modal>
 
+      {/* Indicador de Carga CSS */}
+      <style jsx>{`
+        .loader {
+          border-top-color: #3498db;
+          animation: spinner 1.5s linear infinite;
+        }
+
+        @keyframes spinner {
+          to {
+            transform: rotate(360deg);
+          }
+        }
+      `}</style>
+
       {/* Modal Secundario: Crear Motivo */}
       <Modal
         isOpen={isCreateModalOpen}
-        onRequestClose={() => setIsCreateModalOpen(false)}
+        onRequestClose={handleCancelCreate}
         contentLabel="Crear Nuevo Motivo"
-        className="bg-white rounded-lg shadow-xl w-full max-w-md mx-auto my-8 p-6 outline-none"
+        className="bg-white rounded-lg shadow-xl w-full max-w-md mx-auto p-6 overflow-auto relative"
         overlayClassName="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50"
       >
         {/* Encabezado del Modal de Creación */}
         <div className="flex justify-between items-center mb-4">
-          <h3 className="text-xl font-semibold text-gray-800">Crear Nuevo Motivo</h3>
+          <h3 className="text-xl font-semibold text-blue-800">Crear Nuevo Motivo</h3>
           <button
-            onClick={() => setIsCreateModalOpen(false)}
+            onClick={handleCancelCreate}
             className="text-gray-500 hover:text-gray-700"
             title="Cerrar Modal"
           >
@@ -508,12 +711,16 @@ const MotivoModal = ({ isOpen, onRequestClose }) => {
 
         {/* Formulario de Creación */}
         <div className="mb-4">
-          <label className="block text-gray-700 mb-2">Nombre<span className="text-red-500">*</span>:</label>
+          <label className="block text-gray-700 mb-2">
+            Nombre<span className="text-red-500">*</span>:
+          </label>
           <input
             type="text"
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
-            className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className={`w-full p-2 border ${
+              newName.trim() === '' ? 'border-red-500' : 'border-gray-300'
+            } rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500`}
             placeholder="Nombre del motivo"
           />
         </div>
@@ -522,21 +729,25 @@ const MotivoModal = ({ isOpen, onRequestClose }) => {
           <textarea
             value={newDescription}
             onChange={(e) => setNewDescription(e.target.value)}
-            className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
             placeholder="Descripción del motivo (opcional)"
           />
         </div>
-        <div className="flex justify-end space-x-2">
+
+        {/* Botones de Acción */}
+        <div className="flex justify-end space-x-4">
           <button
             onClick={handleCreate}
-            className="bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition-colors duration-200"
+            className="flex items-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors duration-200"
           >
+            <FaSave className="mr-2" />
             Guardar
           </button>
           <button
             onClick={handleCancelCreate}
-            className="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600 transition-colors duration-200"
+            className="flex items-center px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors duration-200"
           >
+            <FaTimes className="mr-2" />
             Cancelar
           </button>
         </div>
