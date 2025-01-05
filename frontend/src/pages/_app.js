@@ -15,18 +15,6 @@ function MyApp({ Component, pageProps }) {
       <UserProvider> {/* Envolvemos toda la aplicación con UserProvider */}
         <Component {...pageProps} />
       </UserProvider>
-      <ToastContainer
-        position="top-center"
-        autoClose={5000}
-        hideProgressBar={false}
-        newestOnTop={false}
-        closeOnClick
-        rtl={false}
-        pauseOnFocusLoss
-        draggable
-        pauseOnHover
-        theme="colored"
-      />
     </NextUIProvider>
   );
 }

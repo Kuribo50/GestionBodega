@@ -129,16 +129,8 @@ const EstadoModal = ({ isOpen, onRequestClose }) => {
     }
 
     try {
-      // Asumiendo que updateEstado acepta un objeto payload
-      const payload = {
-        nombre: editedName.trim(),
-        descripcion: editedDescription.trim() ? editedDescription.trim() : 'Sin descripción',
-      };
-
-      const updated = await updateEstado(id, payload);
-      setEstados((prevEstados) =>
-        prevEstados.map((e) => (e.id === id ? updated : e))
-      );
+      const updated = await updateEstado(id, editedName.trim() || '', editedDescription.trim() || 'Sin descripción');
+      setEstados(estados.map((e) => (e.id === id ? updated : e)));
 
       MySwal.fire({
         icon: 'success',
@@ -201,7 +193,7 @@ const EstadoModal = ({ isOpen, onRequestClose }) => {
   const confirmDelete = useCallback(async (id, asociadosList) => {
     const hasAsociados = asociadosList.length > 0;
 
-    const result = await MySwal.fire({
+    const result = await Swal.fire({
       title: '¿Estás seguro?',
       text: hasAsociados
         ? `Esta acción eliminará el estado y dejará ${asociadosList.length} artículo(s) sin estado.`
@@ -226,12 +218,10 @@ const EstadoModal = ({ isOpen, onRequestClose }) => {
 
         // Si hay artículos asociados, actualizarlos para que no tengan estado
         if (hasAsociados) {
-          // Usar la forma funcional para evitar depender de 'articulos'
-          await Promise.all(
-            asociadosList.map((articulo) =>
-              updateArticulos(articulo.id, { estado: "" }) // O usa null según tu API
-            )
-          );
+          // Iterar sobre cada artículo asociado y actualizar su estado a ""
+          for (const articulo of asociadosList) {
+            await updateArticulos(articulo.id, { estado: "" }); // O usa null según tu API
+          }
 
           MySwal.fire({
             icon: 'success',
@@ -255,7 +245,7 @@ const EstadoModal = ({ isOpen, onRequestClose }) => {
           },
           buttonsStyling: false,
         });
-        setEstados((prevEstados) => prevEstados.filter((e) => e.id !== id));
+        setEstados((prev) => prev.filter((e) => e.id !== id));
       } catch (error) {
         console.error('Error al eliminar el estado:', error);
         MySwal.fire({
@@ -272,7 +262,7 @@ const EstadoModal = ({ isOpen, onRequestClose }) => {
         setIsDeleting(false);
       }
     }
-  }, []); // Eliminamos 'deleteEstado' y 'updateArticulos' de las dependencias
+  }, []);
 
   // Función para confirmar la eliminación con artículos asociados
   const confirmDeleteWithArticulos = useCallback(async () => {
@@ -285,7 +275,7 @@ const EstadoModal = ({ isOpen, onRequestClose }) => {
       return `• Nombre: ${articulo.nombre}, Stock: ${articulo.stock_actual}, Código Minvu: ${articulo.codigo_minvu || 'N/A'}, Código Interno: ${articulo.codigo_interno || 'N/A'}, Nº Serie: ${articulo.numero_serie || 'N/A'}`;
     }).join('<br/>');
 
-    const result = await MySwal.fire({
+    const result = await Swal.fire({
       title: '¿Estás seguro?',
       html: `
         <p>El estado seleccionado está asociado a <strong>${asociadosList.length}</strong> artículo(s):</p>
@@ -313,7 +303,7 @@ const EstadoModal = ({ isOpen, onRequestClose }) => {
       setDeletingId(null);
       setAssociatedArticulos([]);
     }
-  }, [deletingId, associatedArticulos, confirmDelete]); // 'confirmDelete' ya no depende de 'deleteEstado' y 'updateArticulos'
+  }, [deletingId, associatedArticulos, confirmDelete]);
 
   // Manejar el efecto de eliminación con artículos asociados
   useEffect(() => {
@@ -321,6 +311,18 @@ const EstadoModal = ({ isOpen, onRequestClose }) => {
       confirmDeleteWithArticulos();
     }
   }, [deletingId, associatedArticulos.length, confirmDeleteWithArticulos]);
+
+  // Función para manejar la apertura del modal de creación
+  const openCreateModal = () => {
+    setIsCreateModalOpen(true);
+    resetCreateForm();
+  };
+
+  // Función para resetear el formulario de creación
+  const resetCreateForm = () => {
+    setNewName('');
+    setNewDescription('');
+  };
 
   // Función para manejar la creación de un nuevo estado
   const handleCreate = async () => {
@@ -355,14 +357,7 @@ const EstadoModal = ({ isOpen, onRequestClose }) => {
     }
 
     try {
-      // Asumiendo que createEstado acepta un objeto payload
-      const payload = {
-        nombre: newName.trim(),
-        descripcion: newDescription.trim() ? newDescription.trim() : 'Sin descripción',
-      };
-
-      const created = await createEstado(payload);
-      setEstados((prevEstados) => [...prevEstados, created]);
+      const created = await createEstado(newName.trim() || '', newDescription.trim() || 'Sin descripción');
 
       MySwal.fire({
         icon: 'success',
@@ -374,6 +369,7 @@ const EstadoModal = ({ isOpen, onRequestClose }) => {
         buttonsStyling: false,
       });
 
+      setEstados([...estados, created]);
       setIsCreateModalOpen(false);
       setNewName('');
       setNewDescription('');

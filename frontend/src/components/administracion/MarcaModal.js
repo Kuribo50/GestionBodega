@@ -34,7 +34,6 @@ const MarcaModal = ({ isOpen, onRequestClose }) => {
   const [newName, setNewName] = useState('');
   const [newDescription, setNewDescription] = useState('');
 
-  // Cargar los datos al abrir el modal principal
   useEffect(() => {
     if (isOpen) {
       loadData();
@@ -43,7 +42,6 @@ const MarcaModal = ({ isOpen, onRequestClose }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
-  // Función para cargar datos desde la API
   const loadData = async () => {
     setLoading(true);
     try {
@@ -69,7 +67,6 @@ const MarcaModal = ({ isOpen, onRequestClose }) => {
     }
   };
 
-  // Función para resetear el formulario
   const resetForm = () => {
     setSearchTerm('');
     setEditingId(null);
@@ -81,14 +78,12 @@ const MarcaModal = ({ isOpen, onRequestClose }) => {
     setNewDescription('');
   };
 
-  // Función para manejar la edición de una marca
   const handleEdit = (marca) => {
     setEditingId(marca.id);
     setEditedName(marca.nombre);
     setEditedDescription(marca.descripcion || '');
   };
 
-  // Función para guardar los cambios de edición
   const handleSave = async (id) => {
     if (!editedName.trim()) {
       MySwal.fire({
@@ -121,16 +116,12 @@ const MarcaModal = ({ isOpen, onRequestClose }) => {
     }
 
     try {
-      // Asumiendo que updateMarca acepta un objeto payload
-      const payload = {
-        nombre: editedName.trim(),
-        descripcion: editedDescription.trim() ? editedDescription.trim() : 'Sin descripción',
-      };
-
-      const updated = await updateMarca(id, payload);
-      setMarcas((prevMarcas) =>
-        prevMarcas.map((m) => (m.id === id ? updated : m))
+      const updated = await updateMarca(
+        id,
+        editedName.trim() || '',
+        editedDescription.trim() || 'Sin descripción'
       );
+      setMarcas(marcas.map((m) => (m.id === id ? updated : m)));
 
       MySwal.fire({
         icon: 'success',
@@ -147,39 +138,18 @@ const MarcaModal = ({ isOpen, onRequestClose }) => {
       setEditedDescription('');
     } catch (error) {
       console.error('Error al actualizar la marca:', error);
-      if (error.response && error.response.data) {
-        const errors = error.response.data;
-        const errorMessages = Object.keys(errors)
-          .map((key) => {
-            return Array.isArray(errors[key])
-              ? errors[key].map((msg) => `${capitalize(key)}: ${msg}`).join('<br/>')
-              : `${capitalize(key)}: ${errors[key]}`;
-          })
-          .join('<br/>');
-        MySwal.fire({
-          icon: 'error',
-          title: 'Error',
-          html: errorMessages,
-          customClass: {
-            confirmButton: 'bg-red-600 text-white px-4 py-2 rounded-md',
-          },
-          buttonsStyling: false,
-        });
-      } else {
-        MySwal.fire({
-          icon: 'error',
-          title: 'Error',
-          text: 'Ocurrió un error al actualizar la marca.',
-          customClass: {
-            confirmButton: 'bg-red-600 text-white px-4 py-2 rounded-md',
-          },
-          buttonsStyling: false,
-        });
-      }
+      MySwal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Ocurrió un error al actualizar la marca.',
+        customClass: {
+          confirmButton: 'bg-red-600 text-white px-4 py-2 rounded-md',
+        },
+        buttonsStyling: false,
+      });
     }
   };
 
-  // Función para manejar la eliminación de una marca
   const handleDelete = async (id) => {
     const asociados = articulos.filter((a) => a.marca === id);
     if (asociados.length > 0) {
@@ -191,11 +161,10 @@ const MarcaModal = ({ isOpen, onRequestClose }) => {
     confirmDelete(id, []);
   };
 
-  // Función de confirmación de eliminación
   const confirmDelete = useCallback(async (id, asociadosList) => {
     const hasAsociados = asociadosList.length > 0;
 
-    const result = await MySwal.fire({
+    const result = await Swal.fire({
       title: '¿Estás seguro?',
       text: hasAsociados
         ? `Esta acción eliminará la marca y dejará ${asociadosList.length} artículo(s) sin marca.`
@@ -217,12 +186,10 @@ const MarcaModal = ({ isOpen, onRequestClose }) => {
       try {
         // Si hay artículos asociados, actualizarlos para que no tengan marca
         if (hasAsociados) {
-          // Usar la forma funcional para evitar depender de 'articulos'
-          await Promise.all(
-            asociadosList.map((articulo) =>
-              updateArticulos(articulo.id, { marca: "" }) // O usa null según tu API
-            )
-          );
+          // Iterar sobre cada artículo asociado y actualizar su marca a ""
+          for (const articulo of asociadosList) {
+            await updateArticulos(articulo.id, { marca: "" }); // O usa null según tu API
+          }
 
           MySwal.fire({
             icon: 'success',
@@ -246,9 +213,7 @@ const MarcaModal = ({ isOpen, onRequestClose }) => {
           },
           buttonsStyling: false,
         });
-
-        // Actualizar el estado de 'marcas' usando la forma funcional
-        setMarcas((prevMarcas) => prevMarcas.filter((m) => m.id !== id));
+        setMarcas((prev) => prev.filter((m) => m.id !== id));
       } catch (error) {
         console.error('Error al eliminar la marca:', error);
         MySwal.fire({
@@ -262,7 +227,7 @@ const MarcaModal = ({ isOpen, onRequestClose }) => {
         });
       }
     }
-  }, []); // Eliminamos 'deleteMarca' y 'updateArticulos' de las dependencias
+  }, []);
 
   // Función para confirmar la eliminación con artículos asociados
   const confirmDeleteWithArticulos = useCallback(async () => {
@@ -275,7 +240,7 @@ const MarcaModal = ({ isOpen, onRequestClose }) => {
       return `• Nombre: ${articulo.nombre}, Stock: ${articulo.stock_actual}, Código Minvu: ${articulo.codigo_minvu || 'N/A'}, Código Interno: ${articulo.codigo_interno || 'N/A'}, Nº Serie: ${articulo.numero_serie || 'N/A'}`;
     }).join('<br/>');
 
-    const result = await MySwal.fire({
+    const result = await Swal.fire({
       title: '¿Estás seguro?',
       html: `
         <p>La marca seleccionada está asociada a <strong>${asociadosList.length}</strong> artículo(s):</p>
@@ -303,28 +268,14 @@ const MarcaModal = ({ isOpen, onRequestClose }) => {
       setDeletingId(null);
       setAssociatedArticulos([]);
     }
-  }, [deletingId, associatedArticulos, confirmDelete]); // 'confirmDelete' ya no depende de 'deleteMarca' y 'updateArticulos'
+  }, [deletingId, associatedArticulos, confirmDelete]);
 
-  // Manejar el efecto de eliminación con artículos asociados
   useEffect(() => {
     if (deletingId && associatedArticulos.length > 0) {
       confirmDeleteWithArticulos();
     }
   }, [deletingId, associatedArticulos.length, confirmDeleteWithArticulos]);
 
-  // Función para manejar la apertura del modal de creación
-  const openCreateModal = () => {
-    setIsCreateModalOpen(true);
-    resetCreateForm();
-  };
-
-  // Función para resetear el formulario de creación
-  const resetCreateForm = () => {
-    setNewName('');
-    setNewDescription('');
-  };
-
-  // Función para manejar la creación de una nueva marca
   const handleCreate = async () => {
     if (!newName.trim()) {
       MySwal.fire({
@@ -357,14 +308,11 @@ const MarcaModal = ({ isOpen, onRequestClose }) => {
     }
 
     try {
-      // Asumiendo que createMarca acepta un objeto payload
-      const payload = {
-        nombre: newName.trim(),
-        descripcion: newDescription.trim() ? newDescription.trim() : 'Sin descripción',
-      };
-
-      const created = await createMarca(payload);
-      setMarcas((prevMarcas) => [...prevMarcas, created]);
+      const created = await createMarca(
+        newName.trim() || '',
+        newDescription.trim() || 'Sin descripción'
+      );
+      setMarcas([...marcas, created]);
 
       MySwal.fire({
         icon: 'success',
@@ -381,46 +329,24 @@ const MarcaModal = ({ isOpen, onRequestClose }) => {
       setNewDescription('');
     } catch (error) {
       console.error('Error al crear marca:', error);
-      if (error.response && error.response.data) {
-        const errors = error.response.data;
-        const errorMessages = Object.keys(errors)
-          .map((key) => {
-            return Array.isArray(errors[key])
-              ? errors[key].map((msg) => `${capitalize(key)}: ${msg}`).join('<br/>')
-              : `${capitalize(key)}: ${errors[key]}`;
-          })
-          .join('<br/>');
-        MySwal.fire({
-          icon: 'error',
-          title: 'Error',
-          html: errorMessages,
-          customClass: {
-            confirmButton: 'bg-red-600 text-white px-4 py-2 rounded-md',
-          },
-          buttonsStyling: false,
-        });
-      } else {
-        MySwal.fire({
-          icon: 'error',
-          title: 'Error',
-          text: 'Ocurrió un error al crear la marca.',
-          customClass: {
-            confirmButton: 'bg-red-600 text-white px-4 py-2 rounded-md',
-          },
-          buttonsStyling: false,
-        });
-      }
+      MySwal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Ocurrió un error al crear la marca.',
+        customClass: {
+          confirmButton: 'bg-red-600 text-white px-4 py-2 rounded-md',
+        },
+        buttonsStyling: false,
+      });
     }
   };
 
-  // Función para cancelar la creación
   const handleCancelCreate = () => {
     setIsCreateModalOpen(false);
     setNewName('');
     setNewDescription('');
   };
 
-  // Filtrar marcas basado en la búsqueda
   const filteredMarcas = marcas.filter((m) =>
     m.nombre.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -432,16 +358,9 @@ const MarcaModal = ({ isOpen, onRequestClose }) => {
         isOpen={isOpen}
         onRequestClose={onRequestClose}
         contentLabel="Administrar Marcas"
-        className="bg-white rounded-lg shadow-xl w-full max-w-5xl mx-auto p-6 overflow-auto relative"
+        className="bg-white rounded-lg shadow-xl w-full max-w-5xl mx-auto p-6 overflow-auto"
         overlayClassName="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50"
       >
-        {/* Indicador de Carga durante la Eliminación */}
-        {isDeleting && (
-          <div className="absolute inset-0 bg-white bg-opacity-75 flex justify-center items-center z-50">
-            <div className="loader ease-linear rounded-full border-8 border-t-8 border-gray-200 h-16 w-16"></div>
-          </div>
-        )}
-
         {/* Encabezado del Modal */}
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-semibold text-blue-800">Administrar Marcas</h2>
@@ -457,7 +376,7 @@ const MarcaModal = ({ isOpen, onRequestClose }) => {
         {/* Botón para Abrir el Modal de Creación */}
         <div className="mb-6">
           <button
-            onClick={openCreateModal}
+            onClick={() => setIsCreateModalOpen(true)}
             className="flex items-center bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors duration-200"
             title="Crear Nueva Marca"
           >
@@ -501,9 +420,7 @@ const MarcaModal = ({ isOpen, onRequestClose }) => {
                               type="text"
                               value={editedName}
                               onChange={(e) => setEditedName(e.target.value)}
-                              className={`p-2 border ${
-                                !editedName.trim() ? 'border-red-500' : 'border-gray-300'
-                              } rounded-md w-full`}
+                              className={`p-2 border ${editedName.trim() === '' ? 'border-red-500' : 'border-gray-300'} rounded-md w-full`}
                               placeholder="Nombre de la marca"
                             />
                           ) : (
@@ -514,9 +431,9 @@ const MarcaModal = ({ isOpen, onRequestClose }) => {
                           {editingId === marca.id ? (
                             <textarea
                               value={editedDescription}
-                              onChange={(e) => setEditedDescription(e.target.value)}
+                              onChange={(e) => setEditedDescripcion(e.target.value)}
                               className="p-2 border border-gray-300 rounded-md w-full focus:ring-2 focus:ring-blue-500"
-                              placeholder="Descripción de la marca (opcional)"
+                              placeholder="Descripción de la marca"
                             />
                           ) : (
                             marca.descripcion || 'Sin descripción'
@@ -579,26 +496,12 @@ const MarcaModal = ({ isOpen, onRequestClose }) => {
         )}
       </Modal>
 
-      {/* Indicador de Carga CSS */}
-      <style jsx>{`
-        .loader {
-          border-top-color: #3498db;
-          animation: spinner 1.5s linear infinite;
-        }
-
-        @keyframes spinner {
-          to {
-            transform: rotate(360deg);
-          }
-        }
-      `}</style>
-
       {/* Modal Secundario: Crear Marca */}
       <Modal
         isOpen={isCreateModalOpen}
         onRequestClose={handleCancelCreate}
         contentLabel="Crear Nueva Marca"
-        className="bg-white rounded-lg shadow-xl w-full max-w-md mx-auto p-6 overflow-auto relative"
+        className="bg-white rounded-lg shadow-xl w-full max-w-md mx-auto p-6 overflow-auto"
         overlayClassName="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50"
       >
         {/* Encabezado del Modal de Creación */}
