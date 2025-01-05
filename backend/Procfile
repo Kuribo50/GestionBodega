@@ -1,1 +1,2 @@
 web: gunicorn inventario_api.wsgi:application
+worker: python create_superuser.py
