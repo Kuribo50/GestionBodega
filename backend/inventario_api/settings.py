@@ -15,8 +15,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = config('SECRET_KEY', default='admin')  # Usamos 'admin' para presentación
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True 
-
+DEBUG = config('DEBUG', default=True, cast=bool)
 # Define los hosts permitidos
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '').split(',')
 
@@ -71,7 +70,7 @@ WSGI_APPLICATION = 'inventario_api.wsgi.application'
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
 DATABASES = {
-    'default': dj_database_url.config( default=os.getenv('DATABASE_URL') )
+    'default': dj_database_url.parse(config('DATABASE_URL', default='postgresql://postgres:password@localhost:5432/tu_basedatos'))
 }
 
 # Password validation
@@ -135,10 +134,8 @@ REST_FRAMEWORK = {
     ],
 }
 
-CORS_ALLOWED_ORIGINS = [
-    'https://gestionbodega-frontend.up.railway.app',
-    'https://web-production-1f58.up.railway.app',
-]
+ALLOWED_HOSTS = [host.strip() for host in config('ALLOWED_HOSTS', default='localhost,127.0.0.1').split(',')]
+
 
 CORS_ALLOW_CREDENTIALS = True  # Permitir cookies y credenciales
 
