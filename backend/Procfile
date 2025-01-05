@@ -1,2 +1,2 @@
-release: python manage.py create_admin
-web: gunicorn inventario_api.wsgi:application
+release: python manage.py migrate && python manage.py create_superuser
+web: gunicorn gestion.wsgi:application
