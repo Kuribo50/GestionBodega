@@ -1,0 +1,66 @@
+name: Deploy to Railway
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy-backend:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.11'  # Asegúrate de que coincide con tu versión de Python
+
+    - name: Install dependencies
+      run: |
+        cd backend
+        pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Run Migrations
+      run: |
+        cd backend
+        python manage.py migrate
+
+    - name: Create Superuser
+      run: |
+        cd backend
+        echo "from django.contrib.auth.models import User; User.objects.create_superuser('admin', 'admin@tudominio.com', 'admin')" | python manage.py shell
+
+    - name: Deploy Backend to Railway
+      uses: railwayapp/railway-action@v1
+      with:
+        railway_token: ${{ secrets.RAILWAY_TOKEN }}
+        railway_project_id: your_backend_project_id
+
+  deploy-frontend:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v2
+      with:
+        node-version: '18'  # Asegúrate de usar la versión correcta
+
+    - name: Install dependencies
+      run: |
+        cd frontend
+        npm install
+
+    - name: Build Frontend
+      run: |
+        cd frontend
+        npm run build
+
+    - name: Deploy Frontend to Railway
+      uses: railwayapp/railway-action@v1
+      with:
+        railway_token: ${{ secrets.RAILWAY_TOKEN }}
+        railway_project_id: your_frontend_project_id
