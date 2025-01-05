@@ -14,7 +14,7 @@ SECRET_KEY = config('SECRET_KEY', default='admin')  # Usamos 'admin' para presen
 DEBUG = config('DEBUG', default=False, cast=bool)  # DEBUG=False para producción
 
 # Define los hosts permitidos
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='gestionbodega.up.railway.app,gestionbodega-frontend.up.railway.app', cast=Csv())
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '').split(',')
 
 # Application definition
 
