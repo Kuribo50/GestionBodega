@@ -11,7 +11,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = config('SECRET_KEY', default='admin')  # Usamos 'admin' para presentación
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = config('DEBUG', default=False, cast=bool)  # DEBUG=False para producción
+DEBUG = True 
 
 # Define los hosts permitidos
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '').split(',')
@@ -134,10 +134,10 @@ REST_FRAMEWORK = {
 }
 
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",                        # Para desarrollo local
-    'web-production-1f58.up.railway.app',  # URL de tu backend en Railway
-    'gestionbodega-frontend.up.railway.app',  # URL de tu frontend en Railway
- # Frontend en producción en Railway
+    "http://localhost:3000",                        #
+    'web-production-1f58.up.railway.app',  
+    'gestionbodega-frontend.up.railway.app',
+    'web-production-1f58.up.railway.app '
 ]
 
 CORS_ALLOW_CREDENTIALS = True  # Permitir cookies y credenciales
