@@ -135,7 +135,9 @@ REST_FRAMEWORK = {
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",                        # Para desarrollo local
-    "https://gestionbodega-frontend.up.railway.app", # Frontend en producción en Railway
+    'web-production-1f58.up.railway.app',  # URL de tu backend en Railway
+    'gestionbodega-frontend.up.railway.app',  # URL de tu frontend en Railway
+ # Frontend en producción en Railway
 ]
 
 CORS_ALLOW_CREDENTIALS = True  # Permitir cookies y credenciales
