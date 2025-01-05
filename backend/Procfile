@@ -1,1 +1,2 @@
+release: python manage.py create_admin
 web: gunicorn inventario_api.wsgi:application
