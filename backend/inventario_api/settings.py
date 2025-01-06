@@ -18,7 +18,7 @@ DEBUG = config('DEBUG', default=False, cast=bool)
 # Define los hosts permitidos
 ALLOWED_HOSTS = [
     'web-production-1f58.up.railway.app',
-    'gestionbodega-production.up.railway.app',
+    'gestionbodega-front.up.railway.app',
     'localhost',
     '127.0.0.1',
 ]
@@ -118,9 +118,6 @@ STATIC_URL = '/static/'
 # Directorio donde se recopilarán los archivos estáticos
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
-# Si tienes archivos estáticos adicionales, puedes agregarlos aquí
-STATICFILES_DIRS = []
-
 # Configuración de WhiteNoise para compresión y almacenamiento de archivos estáticos
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
@@ -144,14 +141,14 @@ REST_FRAMEWORK = {
 
 # Configuración de CORS
 CORS_ALLOWED_ORIGINS = [
-    'https://gestionbodega-production.up.railway.app',
+    'https://gestionbodega-front.up.railway.app',
 ]
 
 CORS_ALLOW_CREDENTIALS = True  # Permitir cookies y credenciales
 
 # Configuración de CSRF
 CSRF_TRUSTED_ORIGINS = [
-    'https://gestionbodega-production.up.railway.app',
+    'https://gestionbodega-front.up.railway.app',
 ]
 
 # Configuración de SSL y Proxy
