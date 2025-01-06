@@ -143,7 +143,14 @@ REST_FRAMEWORK = {
     ],
 }
 
-CORS_ALLOWED_ORIGINS = config('CORS_ALLOWED_ORIGINS', cast=Csv())
+CORS_ALLOWED_ORIGINS = [
+    "https://gestionbodega-production.up.railway.app",  # URL del frontend
+]
+
+ALLOWED_HOSTS = [
+    "web-production-1f58.up.railway.app",  # URL del backend
+    "gestionbodega-production.up.railway.app",  # URL del frontend
+]
 
 CORS_ALLOW_CREDENTIALS = True  # Permitir cookies y credenciales
 
@@ -161,12 +168,3 @@ SIMPLE_JWT = {
     'JTI_CLAIM': 'jti',
 }
 
-# Configuraciones de Seguridad para Producción
-SECURE_SSL_REDIRECT = True
-SECURE_BROWSER_XSS_FILTER = True
-SECURE_CONTENT_TYPE_NOSNIFF = True
-SECURE_HSTS_SECONDS = 3600
-SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-SECURE_HSTS_PRELOAD = True
-X_FRAME_OPTIONS = 'DENY'
-SECURE_REFERRER_POLICY = 'no-referrer-when-downgrade'
