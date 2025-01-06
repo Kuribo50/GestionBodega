@@ -13,8 +13,13 @@ RUN npm install
 # Copiar todo el código de la aplicación
 COPY . .
 
-# Configurar las variables de entorno para producción
-ENV NODE_ENV=production NEXT_PUBLIC_API_URL=https://web-production-1f58.up.railway.app/api/
+# Definir argumentos de construcción
+ARG NEXT_PUBLIC_API_URL=https://web-production-1f58.up.railway.app/api/
+
+# Establecer las variables de entorno para producción
+ENV NODE_ENV=production \
+    NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+
 # Construir la aplicación Next.js
 RUN npm run build
 
