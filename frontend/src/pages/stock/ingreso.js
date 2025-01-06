@@ -5,6 +5,7 @@ import Swal from "sweetalert2"; // SweetAlert2 para notificaciones
 import Sidebar from "@/components/Sidebar";
 import Select from "react-select";
 import CreatableSelect from "react-select/creatable";
+import api from '../services/api'; // Importar el módulo api.js
 
 export default function EntradaProducto() {
   const [formData, setFormData] = useState({
@@ -41,36 +42,8 @@ export default function EntradaProducto() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem("access_token");
 
-      const [
-        categoriaRes,
-        marcaRes,
-        modeloRes,
-        ubicacionRes,
-        articuloRes,
-        motivoRes,
-      ] = await Promise.all([
-        fetch("https://web-production-1f58.up.railway.app/api/categorias/", {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
-        fetch("https://web-production-1f58.up.railway.app/api/marcas/", {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
-        fetch("https://web-production-1f58.up.railway.app/api/modelos/", {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
-        fetch("https://web-production-1f58.up.railway.app/api/ubicaciones/", {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
-        fetch("https://web-production-1f58.up.railway.app/api/articulos/", {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
-        fetch("https://web-production-1f58.up.railway.app/api/motivos/", {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
-      ]);
-
+      // Realizar solicitudes paralelas usando api.js
       const [
         categoriaData,
         marcaData,
@@ -79,12 +52,12 @@ export default function EntradaProducto() {
         articuloData,
         motivoData,
       ] = await Promise.all([
-        categoriaRes.json(),
-        marcaRes.json(),
-        modeloRes.json(),
-        ubicacionRes.json(),
-        articuloRes.json(),
-        motivoRes.json(),
+        api.get('/categorias/').then(res => res.data),
+        api.get('/marcas/').then(res => res.data),
+        api.get('/modelos/').then(res => res.data),
+        api.get('/ubicaciones/').then(res => res.data),
+        api.get('/articulos/').then(res => res.data),
+        api.get('/motivos/').then(res => res.data),
       ]);
 
       setCategorias(categoriaData);
@@ -175,33 +148,8 @@ export default function EntradaProducto() {
     if (selectedOption) {
       if (selectedOption.__isNew__) {
         try {
-          const token = localStorage.getItem("access_token");
-          const response = await fetch("https://web-production-1f58.up.railway.app/api/motivos/", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({ nombre: selectedOption.label }),
-          });
-
-          if (!response.ok) {
-            const errorData = await response.json();
-            Swal.fire({
-              icon: "error",
-              title: "Error",
-              text: `Error al crear el motivo: ${JSON.stringify(errorData)}`,
-              position: "center",
-              buttonsStyling: false, // Desactiva los estilos predeterminados
-              customClass: {
-                confirmButton:
-                  "bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded",
-              },
-            });
-            return;
-          }
-
-          const nuevoMotivo = await response.json();
+          const response = await api.post('/motivos/', { nombre: selectedOption.label });
+          const nuevoMotivo = response.data;
           setMotivos((prevMotivos) => [
             ...prevMotivos,
             { label: nuevoMotivo.nombre, value: String(nuevoMotivo.id) },
@@ -284,7 +232,6 @@ export default function EntradaProducto() {
     }
 
     try {
-      const token = localStorage.getItem("access_token");
       const cantidadInt = parseInt(formData.cantidad, 10);
       let motivoFinal = formData.motivo;
 
@@ -299,39 +246,13 @@ export default function EntradaProducto() {
           motivoFinal = entradaMotivo.value;
         } else {
           // Si no existe, crear uno nuevo
-          const response = await fetch("https://web-production-1f58.up.railway.app/api/motivos/", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({ nombre: "Entrada de Stock" }),
-          });
-
-          if (response.ok) {
-            const nuevoMotivo = await response.json();
-            setMotivos((prevMotivos) => [
-              ...prevMotivos,
-              { label: nuevoMotivo.nombre, value: String(nuevoMotivo.id) },
-            ]);
-            motivoFinal = String(nuevoMotivo.id);
-          } else {
-            // Manejar error al crear el motivo
-            const errorData = await response.json();
-            Swal.fire({
-              icon: "error",
-              title: "Error",
-              text: `Error al crear el motivo por defecto: ${JSON.stringify(errorData)}`,
-              position: "center",
-              buttonsStyling: false,
-              customClass: {
-                confirmButton:
-                  "bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded",
-              },
-            });
-            setIsSubmitting(false);
-            return;
-          }
+          const response = await api.post('/motivos/', { nombre: "Entrada de Stock" });
+          const nuevoMotivo = response.data;
+          setMotivos((prevMotivos) => [
+            ...prevMotivos,
+            { label: nuevoMotivo.nombre, value: String(nuevoMotivo.id) },
+          ]);
+          motivoFinal = String(nuevoMotivo.id);
         }
       }
 
@@ -345,16 +266,9 @@ export default function EntradaProducto() {
         motivo: motivoFinal,
       };
 
-      const response = await fetch("https://web-production-1f58.up.railway.app/api/movimientos/", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(movimientoPayload),
-      });
+      const response = await api.post('/movimientos/', movimientoPayload);
 
-      if (response.ok) {
+      if (response.status === 201) { // Asegúrate de que la API devuelve 201 en creación exitosa
         Swal.fire({
           icon: "success",
           title: "¡Éxito!",
@@ -383,7 +297,7 @@ export default function EntradaProducto() {
 
         resetForm();
       } else {
-        const errorData = await response.json();
+        const errorData = response.data;
         Swal.fire({
           icon: "error",
           title: "Error",
