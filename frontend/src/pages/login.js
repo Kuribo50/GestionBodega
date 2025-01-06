@@ -59,10 +59,10 @@ export default function Login() {
         <div className="bg-white w-full lg:w-1/2 p-6 flex flex-col justify-center">
           <div className="max-w-sm mx-auto">
             <h1 className="text-3xl font-bold text-gray-800 mb-4 text-center lg:text-left">
-              Bienvenido de Vuelta
+                Hola, bienvenido          
             </h1>
             <p className="text-lg text-gray-600 mb-6 text-center lg:text-left">
-              Ingresa tus credenciales para continuar
+              Ingresa tus credenciales para continuar.
             </p>
 
             <form onSubmit={handleSubmit}>

@@ -34,7 +34,7 @@ export const UserProvider = ({ children }) => {
 
     try {
       // Obtener tokens desde el backend
-      const tokenResponse = await api.post('/token/', { username, password });
+      const tokenResponse = await api.post('/token/', { username, password }); // Ruta relativa
       const { access, refresh } = tokenResponse.data;
 
       // Guardar tokens en localStorage
