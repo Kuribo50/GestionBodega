@@ -1,12 +1,8 @@
 from pathlib import Path
 from datetime import timedelta
 import os
-from dotenv import load_dotenv  # Importa load_dotenv
 from decouple import config, Csv  # Importa config y Csv
 import dj_database_url  # Importa dj_database_url
-
-
-load_dotenv()  # Carga las variables de entorno desde .env
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -15,9 +11,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = config('SECRET_KEY', default='admin')  # Usamos 'admin' para presentación
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = config('DEBUG', default=True, cast=bool)
+DEBUG = config('DEBUG', default=False, cast=bool)  # DEBUG=False para producción
+
 # Define los hosts permitidos
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '').split(',')
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', cast=lambda v: [s.strip() for s in v.split(',')])
 
 # Application definition
 
@@ -70,7 +67,9 @@ WSGI_APPLICATION = 'inventario_api.wsgi.application'
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
 DATABASES = {
-    'default': dj_database_url.parse(config('DATABASE_URL', default='postgresql://postgres:password@localhost:5432/tu_basedatos'))
+    'default': dj_database_url.config(
+        default=config('DATABASE_URL')
+    )
 }
 
 # Password validation
@@ -134,8 +133,8 @@ REST_FRAMEWORK = {
     ],
 }
 
-ALLOWED_HOSTS = [host.strip() for host in config('ALLOWED_HOSTS', default='localhost,127.0.0.1').split(',')]
-
+# Configuración de CORS
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=Csv())
 
 CORS_ALLOW_CREDENTIALS = True  # Permitir cookies y credenciales
 
