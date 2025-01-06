@@ -8,7 +8,7 @@ import { saveAs } from "file-saver"; // Asegúrate de importar saveAs
 const capitalize = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
 // Configuración base de la API
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://web-production-1f58.up.railway.app/api'";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://web-production-1f58.up.railway.app/api/";
 
 // Instancia de Axios con configuración base
 const api = axios.create({

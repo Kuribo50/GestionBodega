@@ -1,3 +1,5 @@
+# Dockerfile
+
 # Usar una imagen base de Python
 FROM python:3.10-slim
 
@@ -11,7 +13,11 @@ ENV PYTHONUNBUFFERED=1
 WORKDIR /app
 
 # Instalar las dependencias del sistema necesarias
-RUN apt-get update && apt-get install -y build-essential libpq-dev && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    libpq-dev \
+    pkg-config \
+    && rm -rf /var/lib/apt/lists/*
 
 # Copiar el archivo requirements.txt y instalar dependencias
 COPY requirements.txt /app/
@@ -19,6 +25,9 @@ RUN pip install --upgrade pip && pip install -r requirements.txt
 
 # Copiar el resto del código de la aplicación
 COPY . /app/
+
+# Recopilar archivos estáticos
+RUN python manage.py collectstatic --noinput
 
 # Comando para ejecutar Gunicorn
 CMD ["gunicorn", "inventario_api.wsgi:application", "--bind", "0.0.0.0:8080"]

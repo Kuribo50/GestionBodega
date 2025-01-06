@@ -3,7 +3,7 @@
 from pathlib import Path
 from datetime import timedelta
 import os
-from decouple import config, Csv
+from decouple import config
 import dj_database_url
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -33,14 +33,15 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',  # Django REST Framework
-    'gestion',  # Tu aplicación para la API
     'corsheaders',
     'rest_framework_simplejwt',
     'rest_framework_simplejwt.token_blacklist',
+    # ... otras apps
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # WhiteNoise Middleware
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',  # Debe estar antes de CommonMiddleware
     'django.middleware.common.CommonMiddleware',
@@ -115,14 +116,17 @@ USE_TZ = True
 STATIC_URL = '/static/'
 
 # Directorio donde se recopilarán los archivos estáticos
-STATIC_ROOT = config('DJANGO_STATIC_ROOT', default=os.path.join(BASE_DIR, 'staticfiles'))
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 # Si tienes archivos estáticos adicionales, puedes agregarlos aquí
 STATICFILES_DIRS = []
 
+# Configuración de WhiteNoise para compresión y almacenamiento de archivos estáticos
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
 # Directorio para archivos multimedia
 MEDIA_URL = '/media/'
-MEDIA_ROOT = config('DJANGO_MEDIA_ROOT', default=os.path.join(BASE_DIR, 'media'))
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
@@ -138,15 +142,23 @@ REST_FRAMEWORK = {
     ],
 }
 
+# Configuración de CORS
 CORS_ALLOWED_ORIGINS = [
     'https://gestionbodega-production.up.railway.app',
 ]
 
 CORS_ALLOW_CREDENTIALS = True  # Permitir cookies y credenciales
 
+# Configuración de CSRF
 CSRF_TRUSTED_ORIGINS = [
     'https://gestionbodega-production.up.railway.app',
 ]
+
+# Configuración de SSL y Proxy
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+SECURE_SSL_REDIRECT = False  # Desactiva temporalmente para evitar bucles de redirección
+SESSION_COOKIE_SECURE = False
+CSRF_COOKIE_SECURE = False
 
 # Configuración adicional para Simple JWT
 SIMPLE_JWT = {
@@ -161,14 +173,3 @@ SIMPLE_JWT = {
     'TOKEN_TYPE_CLAIM': 'token_type',
     'JTI_CLAIM': 'jti',
 }
-
-# Configuraciones de Seguridad para Producción
-SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-SECURE_SSL_REDIRECT = False  # Desactiva temporalmente para evitar bucles de redirección
-SESSION_COOKIE_SECURE = False
-CSRF_COOKIE_SECURE = False
-
-# Una vez resuelto el problema, considera reactivar las siguientes configuraciones para mayor seguridad:
-# SECURE_SSL_REDIRECT = True
-# SESSION_COOKIE_SECURE = True
-# CSRF_COOKIE_SECURE = True
