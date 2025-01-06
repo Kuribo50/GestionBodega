@@ -14,7 +14,7 @@ SECRET_KEY = config('SECRET_KEY', default='admin')  # Usamos 'admin' para presen
 DEBUG = config('DEBUG', default=False, cast=bool)  # DEBUG=False para producción
 
 # Define los hosts permitidos
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', cast=lambda v: [s.strip() for s in v.split(',')])
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '').split(',')
 
 # Application definition
 
@@ -66,11 +66,21 @@ WSGI_APPLICATION = 'inventario_api.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
-DATABASES = {
-    'default': dj_database_url.config(
-        default=config('DATABASE_URL')
-    )
-}
+if DEBUG:
+    DATABASES = {
+        'default': dj_database_url.parse(
+            config('DATABASE_PUBLIC_URL'),
+            conn_max_age=600
+        )
+    }
+else:
+    DATABASES = {
+        'default': dj_database_url.config(
+            default=config('DATABASE_URL'),
+            conn_max_age=600
+        )
+    }
+
 
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
@@ -133,8 +143,7 @@ REST_FRAMEWORK = {
     ],
 }
 
-# Configuración de CORS
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=Csv())
+CORS_ALLOWED_ORIGINS = config('CORS_ALLOWED_ORIGINS', cast=Csv())
 
 CORS_ALLOW_CREDENTIALS = True  # Permitir cookies y credenciales
 
