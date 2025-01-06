@@ -1,27 +1,20 @@
-# settings.py
-
 from pathlib import Path
 from datetime import timedelta
 import os
-from decouple import config
-import dj_database_url
+from decouple import config, Csv  # Importa config y Csv
+import dj_database_url  # Importa dj_database_url
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = config('SECRET_KEY', default='admin')  # Usa un valor seguro en producción
+SECRET_KEY = config('SECRET_KEY', default='admin')  # Usamos 'admin' para presentación
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = config('DEBUG', default=False, cast=bool)
+DEBUG = config('DEBUG', default=False, cast=bool)  # DEBUG=False para producción
 
 # Define los hosts permitidos
-ALLOWED_HOSTS = [
-    'web-production-1f58.up.railway.app',
-    'gestionbodega-front.up.railway.app',
-    'localhost',
-    '127.0.0.1',
-]
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '').split(',')
 
 # Application definition
 
@@ -33,17 +26,16 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',  # Django REST Framework
+    'gestion',  # Tu aplicación para la API
     'corsheaders',
     'rest_framework_simplejwt',
     'rest_framework_simplejwt.token_blacklist',
-    # ... otras apps
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',  # WhiteNoise Middleware
     'django.contrib.sessions.middleware.SessionMiddleware',
-    'corsheaders.middleware.CorsMiddleware',  # Debe estar antes de CommonMiddleware
+    'corsheaders.middleware.CorsMiddleware',  # Colocado antes de CommonMiddleware
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -71,7 +63,9 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'inventario_api.wsgi.application'
 
-# Database Configuration
+# Database
+# https://docs.djangoproject.com/en/5.1/ref/settings/#databases
+
 if DEBUG:
     DATABASES = {
         'default': dj_database_url.parse(
@@ -87,7 +81,10 @@ else:
         )
     }
 
+
 # Password validation
+# https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
+
 AUTH_PASSWORD_VALIDATORS = [
     {
         'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
@@ -104,6 +101,8 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 # Internationalization
+# https://docs.djangoproject.com/en/5.1/topics/i18n/
+
 LANGUAGE_CODE = 'en-us'
 
 TIME_ZONE = config('DJANGO_TIMEZONE', default='UTC')
@@ -113,19 +112,24 @@ USE_I18N = True
 USE_TZ = True
 
 # Static files (CSS, JavaScript, Images)
+# https://docs.djangoproject.com/en/5.1/howto/static-files/
+
 STATIC_URL = '/static/'
 
 # Directorio donde se recopilarán los archivos estáticos
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+STATIC_ROOT = config('DJANGO_STATIC_ROOT', default=os.path.join(BASE_DIR, 'staticfiles'))
 
-# Configuración de WhiteNoise para compresión y almacenamiento de archivos estáticos
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+# Si tienes archivos estáticos adicionales, puedes agregarlos aquí
+STATICFILES_DIRS = [
+]
 
 # Directorio para archivos multimedia
 MEDIA_URL = '/media/'
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+MEDIA_ROOT = config('DJANGO_MEDIA_ROOT', default=os.path.join(BASE_DIR, 'media'))
 
 # Default primary key field type
+# https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
+
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # REST Framework Configuration
@@ -139,23 +143,17 @@ REST_FRAMEWORK = {
     ],
 }
 
-# Configuración de CORS
 CORS_ALLOWED_ORIGINS = [
-    'https://gestionbodega-front.up.railway.app',
+    "https://gestionbodega-production.up.railway.app",  # URL del frontend
+    "https://gestionbodega-front.up.railway.app/",  # URL del frontend
+]
+
+ALLOWED_HOSTS = [
+    "web-production-1f58.up.railway.app",  # URL del backend
+    "gestionbodega-front.up.railway.app",  # URL del frontend
 ]
 
 CORS_ALLOW_CREDENTIALS = True  # Permitir cookies y credenciales
-
-# Configuración de CSRF
-CSRF_TRUSTED_ORIGINS = [
-    'https://gestionbodega-front.up.railway.app',
-]
-
-# Configuración de SSL y Proxy
-SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-SECURE_SSL_REDIRECT = False  # Desactiva temporalmente para evitar bucles de redirección
-SESSION_COOKIE_SECURE = False
-CSRF_COOKIE_SECURE = False
 
 # Configuración adicional para Simple JWT
 SIMPLE_JWT = {
@@ -170,3 +168,13 @@ SIMPLE_JWT = {
     'TOKEN_TYPE_CLAIM': 'token_type',
     'JTI_CLAIM': 'jti',
 }
+
+# Configuraciones de Seguridad para Producción
+SECURE_SSL_REDIRECT = True
+SECURE_BROWSER_XSS_FILTER = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_HSTS_SECONDS = 3600
+SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+SECURE_HSTS_PRELOAD = True
+X_FRAME_OPTIONS = 'DENY'
+SECURE_REFERRER_POLICY = 'no-referrer-when-downgrade'
