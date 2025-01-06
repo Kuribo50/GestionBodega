@@ -182,31 +182,31 @@ const HistorialMovimientos = () => {
           motivosData,
           estadosData,
         ] = await Promise.all([
-          fetch('http://127.0.0.1:8000/api/articulos/', { headers }).then(
+          fetch('https://web-production-1f58.up.railway.app/api/articulos/', { headers }).then(
             (res) => res.json()
           ),
-          fetch('http://127.0.0.1:8000/api/categorias/', { headers }).then(
+          fetch('https://web-production-1f58.up.railway.app/api/categorias/', { headers }).then(
             (res) => res.json()
           ),
-          fetch('http://127.0.0.1:8000/api/modelos/', { headers }).then(
+          fetch('https://web-production-1f58.up.railway.app/api/modelos/', { headers }).then(
             (res) => res.json()
           ),
-          fetch('http://127.0.0.1:8000/api/marcas/', { headers }).then(
+          fetch('https://web-production-1f58.up.railway.app/api/marcas/', { headers }).then(
             (res) => res.json()
           ),
-          fetch('http://127.0.0.1:8000/api/ubicaciones/', { headers }).then(
+          fetch('https://web-production-1f58.up.railway.app/api/ubicaciones/', { headers }).then(
             (res) => res.json()
           ),
-          fetch('http://127.0.0.1:8000/api/historial-stock/', { headers }).then(
+          fetch('https://web-production-1f58.up.railway.app/api/historial-stock/', { headers }).then(
             (res) => res.json()
           ),
-          fetch('http://127.0.0.1:8000/api/usuarios/', { headers }).then(
+          fetch('https://web-production-1f58.up.railway.app/api/usuarios/', { headers }).then(
             (res) => res.json()
           ),
-          fetch('http://127.0.0.1:8000/api/motivos/', { headers }).then(
+          fetch('https://web-production-1f58.up.railway.app/api/motivos/', { headers }).then(
             (res) => res.json()
           ),
-          fetch('http://127.0.0.1:8000/api/estados/', { headers }).then(
+          fetch('https://web-production-1f58.up.railway.app/api/estados/', { headers }).then(
             (res) => res.json()
           ),
         ]);

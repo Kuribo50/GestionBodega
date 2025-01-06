@@ -51,22 +51,22 @@ export default function SalidaProducto() {
         articuloRes,
         motivoRes,
       ] = await Promise.all([
-        fetch("http://localhost:8000/api/categorias/", {
+        fetch("https://web-production-1f58.up.railway.app/api/categorias/", {
           headers: { Authorization: `Bearer ${token}` },
         }),
-        fetch("http://localhost:8000/api/marcas/", {
+        fetch("https://web-production-1f58.up.railway.app/api/marcas/", {
           headers: { Authorization: `Bearer ${token}` },
         }),
-        fetch("http://localhost:8000/api/modelos/", {
+        fetch("https://web-production-1f58.up.railway.app/api/modelos/", {
           headers: { Authorization: `Bearer ${token}` },
         }),
-        fetch("http://localhost:8000/api/ubicaciones/", {
+        fetch("https://web-production-1f58.up.railway.app/api/ubicaciones/", {
           headers: { Authorization: `Bearer ${token}` },
         }),
-        fetch("http://localhost:8000/api/articulos/", {
+        fetch("https://web-production-1f58.up.railway.app/api/articulos/", {
           headers: { Authorization: `Bearer ${token}` },
         }),
-        fetch("http://localhost:8000/api/motivos/", {
+        fetch("https://web-production-1f58.up.railway.app/api/motivos/", {
           headers: { Authorization: `Bearer ${token}` },
         }),
       ]);
@@ -170,7 +170,7 @@ export default function SalidaProducto() {
       if (selectedOption.__isNew__) {
         try {
           const token = localStorage.getItem("access_token");
-          const response = await fetch("http://localhost:8000/api/motivos/", {
+          const response = await fetch("https://web-production-1f58.up.railway.app/api/motivos/", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -291,7 +291,7 @@ export default function SalidaProducto() {
           motivoFinal = salidaMotivo.value;
         } else {
           // Si no existe, crear uno nuevo
-          const response = await fetch("http://localhost:8000/api/motivos/", {
+          const response = await fetch("https://web-production-1f58.up.railway.app/api/motivos/", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -337,7 +337,7 @@ export default function SalidaProducto() {
         motivo: motivoFinal,
       };
 
-      const response = await fetch("http://localhost:8000/api/movimientos/", {
+      const response = await fetch("https://web-production-1f58.up.railway.app/api/movimientos/", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

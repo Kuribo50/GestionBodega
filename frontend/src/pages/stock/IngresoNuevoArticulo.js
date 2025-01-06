@@ -86,12 +86,12 @@ export default function IngresoNuevoArticulo() {
 
       // Múltiples fetch en paralelo:
       const [catRes, marRes, modRes, estRes, artRes, ubiRes] = await Promise.all([
-        fetch("http://127.0.0.1:8000/api/categorias/", { headers: { Authorization: `Bearer ${token}` } }),
-        fetch("http://127.0.0.1:8000/api/marcas/", { headers: { Authorization: `Bearer ${token}` } }),
-        fetch("http://127.0.0.1:8000/api/modelos/", { headers: { Authorization: `Bearer ${token}` } }),
-        fetch("http://127.0.0.1:8000/api/estados/", { headers: { Authorization: `Bearer ${token}` } }),
-        fetch("http://127.0.0.1:8000/api/articulos/", { headers: { Authorization: `Bearer ${token}` } }),
-        fetch("http://127.0.0.1:8000/api/ubicaciones/", { headers: { Authorization: `Bearer ${token}` } }),
+        fetch("https://web-production-1f58.up.railway.app/api/categorias/", { headers: { Authorization: `Bearer ${token}` } }),
+        fetch("https://web-production-1f58.up.railway.app/api/marcas/", { headers: { Authorization: `Bearer ${token}` } }),
+        fetch("https://web-production-1f58.up.railway.app/api/modelos/", { headers: { Authorization: `Bearer ${token}` } }),
+        fetch("https://web-production-1f58.up.railway.app/api/estados/", { headers: { Authorization: `Bearer ${token}` } }),
+        fetch("https://web-production-1f58.up.railway.app/api/articulos/", { headers: { Authorization: `Bearer ${token}` } }),
+        fetch("https://web-production-1f58.up.railway.app/api/ubicaciones/", { headers: { Authorization: `Bearer ${token}` } }),
       ]);
 
       const checkUnauthorized = (res) => {
@@ -337,7 +337,7 @@ export default function IngresoNuevoArticulo() {
 
       try {
         const token = localStorage.getItem("access_token");
-        const response = await fetch("http://127.0.0.1:8000/api/articulos/", {
+        const response = await fetch("https://web-production-1f58.up.railway.app/api/articulos/", {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
           body: JSON.stringify(finalFormData),
@@ -485,7 +485,7 @@ export default function IngresoNuevoArticulo() {
                   onCreateOption={(inputValue) =>
                     handleCreateOption(
                       inputValue,
-                      "http://127.0.0.1:8000/api/categorias/",
+                      "https://web-production-1f58.up.railway.app/api/categorias/",
                       setCategorias,
                       "categoria"
                     )
@@ -552,7 +552,7 @@ export default function IngresoNuevoArticulo() {
                   onCreateOption={(inputValue) =>
                     handleCreateOption(
                       inputValue,
-                      "http://127.0.0.1:8000/api/modelos/",
+                      "https://web-production-1f58.up.railway.app/api/modelos/",
                       setModelos,
                       "modelo"
                     )
@@ -585,7 +585,7 @@ export default function IngresoNuevoArticulo() {
                   onCreateOption={(inputValue) =>
                     handleCreateOption(
                       inputValue,
-                      "http://127.0.0.1:8000/api/marcas/",
+                      "https://web-production-1f58.up.railway.app/api/marcas/",
                       setMarcas,
                       "marca"
                     )
@@ -618,7 +618,7 @@ export default function IngresoNuevoArticulo() {
                   onCreateOption={(inputValue) =>
                     handleCreateOption(
                       inputValue,
-                      "http://127.0.0.1:8000/api/ubicaciones/",
+                      "https://web-production-1f58.up.railway.app/api/ubicaciones/",
                       setUbicaciones,
                       "ubicacion"
                     )

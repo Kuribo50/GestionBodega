@@ -62,7 +62,7 @@ export default function CambioEstadoArticulo() {
 
   // Funciones separadas para fetch de cada entidad
   const fetchCategorias = useCallback(async (token) => {
-    const response = await fetch("http://localhost:8000/api/categorias/", {
+    const response = await fetch("https://web-production-1f58.up.railway.app/api/categorias/", {
       headers: { Authorization: `Bearer ${token}` },
     });
     const data = await response.json();
@@ -72,7 +72,7 @@ export default function CambioEstadoArticulo() {
   }, []);
 
   const fetchMarcas = useCallback(async (token) => {
-    const response = await fetch("http://localhost:8000/api/marcas/", {
+    const response = await fetch("https://web-production-1f58.up.railway.app/api/marcas/", {
       headers: { Authorization: `Bearer ${token}` },
     });
     const data = await response.json();
@@ -81,7 +81,7 @@ export default function CambioEstadoArticulo() {
   }, []);
 
   const fetchModelos = useCallback(async (token) => {
-    const response = await fetch("http://localhost:8000/api/modelos/", {
+    const response = await fetch("https://web-production-1f58.up.railway.app/api/modelos/", {
       headers: { Authorization: `Bearer ${token}` },
     });
     const data = await response.json();
@@ -90,7 +90,7 @@ export default function CambioEstadoArticulo() {
   }, []);
 
   const fetchUbicaciones = useCallback(async (token) => {
-    const response = await fetch("http://localhost:8000/api/ubicaciones/", {
+    const response = await fetch("https://web-production-1f58.up.railway.app/api/ubicaciones/", {
       headers: { Authorization: `Bearer ${token}` },
     });
     const data = await response.json();
@@ -99,7 +99,7 @@ export default function CambioEstadoArticulo() {
   }, []);
 
   const fetchArticulos = useCallback(async (token) => {
-    const response = await fetch("http://localhost:8000/api/articulos/", {
+    const response = await fetch("https://web-production-1f58.up.railway.app/api/articulos/", {
       headers: { Authorization: `Bearer ${token}` },
     });
     const data = await response.json();
@@ -129,7 +129,7 @@ export default function CambioEstadoArticulo() {
   }, []);
 
   const fetchEstados = useCallback(async (token) => {
-    const response = await fetch("http://localhost:8000/api/estados/", {
+    const response = await fetch("https://web-production-1f58.up.railway.app/api/estados/", {
       headers: { Authorization: `Bearer ${token}` },
     });
     const data = await response.json();
@@ -138,7 +138,7 @@ export default function CambioEstadoArticulo() {
   }, []);
 
   const fetchMotivos = useCallback(async (token) => { // Nuevo
-    const response = await fetch("http://localhost:8000/api/motivos/", {
+    const response = await fetch("https://web-production-1f58.up.railway.app/api/motivos/", {
       headers: { Authorization: `Bearer ${token}` },
     });
     const data = await response.json();
@@ -169,7 +169,7 @@ export default function CambioEstadoArticulo() {
         fetchArticulos(token),
         fetchEstados(token),
         fetchMotivos(token), // Nuevo
-        fetch("http://localhost:8000/api/historial-stock/", {
+        fetch("https://web-production-1f58.up.railway.app/api/historial-stock/", {
           headers: { Authorization: `Bearer ${token}` },
         }).then((res) => res.json()),
       ]);
@@ -278,7 +278,7 @@ export default function CambioEstadoArticulo() {
   const handleEstadoCreate = async (inputValue) => {
     const token = localStorage.getItem("access_token");
     try {
-      const response = await fetch("http://localhost:8000/api/estados/", {
+      const response = await fetch("https://web-production-1f58.up.railway.app/api/estados/", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -327,7 +327,7 @@ export default function CambioEstadoArticulo() {
   const handleMotivoCreate = async (inputValue) => {
     const token = localStorage.getItem("access_token");
     try {
-      const response = await fetch("http://localhost:8000/api/motivos/", {
+      const response = await fetch("https://web-production-1f58.up.railway.app/api/motivos/", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -467,7 +467,7 @@ export default function CambioEstadoArticulo() {
     try {
       // Registrar el movimiento
       const respuestaMovimiento = await fetch(
-        "http://localhost:8000/api/movimientos/",
+        "https://web-production-1f58.up.railway.app/api/movimientos/",
         {
           method: "POST",
           headers: {
