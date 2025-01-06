@@ -5,7 +5,7 @@ import Swal from "sweetalert2"; // SweetAlert2 para notificaciones
 import Sidebar from "@/components/Sidebar";
 import Select from "react-select";
 import CreatableSelect from "react-select/creatable";
-import api from '../services/api'; // Importar el módulo api.js
+import api from '@/services/api'; // Importar el módulo api.js
 
 export default function EntradaProducto() {
   const [formData, setFormData] = useState({
