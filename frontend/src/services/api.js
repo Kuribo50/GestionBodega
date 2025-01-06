@@ -12,7 +12,6 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://web-production-
 
 console.log('API_BASE_URL:', API_BASE_URL); // Añade esta línea para depuración
 
-
 // Instancia de Axios con configuración base
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -22,6 +21,7 @@ const api = axios.create({
   },
   withCredentials: true,  // Añadir esta línea si usas cookies
 });
+
 // Variable para evitar múltiples alertas de sesión expirada
 let isSessionExpired = false;
 
